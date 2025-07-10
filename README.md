@@ -59,7 +59,7 @@ multiagent-debugger debug "Why did my /api/users endpoint fail yesterday?"
 
 The Multi-Agent Debugger uses a sophisticated architecture that combines multiple specialized AI agents working together to analyze and debug API failures. Here's how the components interact:
 
-![Multi-Agent Debugger Architecture](docs/images/architecture.png)
+![Multi-Agent Debugger Architecture](https://github.com/VishApp/multiagent-debugger/blob/main/docs/images/architecture.png)
 
 ### Key Components
 
