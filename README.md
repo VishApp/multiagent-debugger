@@ -55,6 +55,41 @@ python -m multiagent_debugger setup
 python -m multiagent_debugger debug "Why did my /api/users endpoint fail yesterday?"
 ```
 
+## Architecture
+
+The Multi-Agent Debugger uses a sophisticated architecture that combines multiple specialized AI agents working together to analyze and debug API failures. Here's how the components interact:
+
+![Multi-Agent Debugger Architecture](docs/images/architecture.png)
+
+### Key Components
+
+1. **User Interface Layer**
+   - CLI Interface for user interaction
+   - Handles command processing and output formatting
+
+2. **Configuration Layer**
+   - LLM Settings supporting 59+ providers
+   - Config Manager for handling paths and settings
+
+3. **Debugger Crew**
+   - Crew Orchestrator managing agent interactions
+   - Coordinates the analysis workflow
+
+4. **Specialized Agents**
+   - Question Analyzer: Processes natural language queries
+   - Log Analyzer: Examines log files
+   - Code Analyzer: Reviews codebase
+   - Root Cause Synthesizer: Combines findings
+
+5. **Tools Layer**
+   - Log Tools for log file analysis
+   - Code Tools for codebase examination
+
+6. **External Resources**
+   - Log Files
+   - Codebase
+   - LLM Providers (OpenAI, Anthropic, etc.)
+
 ## Configuration
 
 Create a `config.yaml` file (or use the setup command):
