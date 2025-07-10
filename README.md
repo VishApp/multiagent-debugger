@@ -47,12 +47,12 @@ pip install -e .
 
 1. Set up your configuration:
 ```bash
-python -m multiagent_debugger setup
+multiagent-debugger setup
 ```
 
 2. Debug an API failure:
 ```bash
-python -m multiagent_debugger debug "Why did my /api/users endpoint fail yesterday?"
+multiagent-debugger debug "Why did my /api/users endpoint fail yesterday?"
 ```
 
 ## Architecture
@@ -126,22 +126,22 @@ Set the appropriate environment variable for your chosen provider:
 
 ### List Available Providers
 ```bash
-python -m multiagent_debugger list-providers
+multiagent-debugger list-providers
 ```
 
 ### List Models for a Provider
 ```bash
-python -m multiagent_debugger list-models openai
+multiagent-debugger list-models openai
 ```
 
 ### Debug with Custom Config
 ```bash
-python -m multiagent_debugger debug "Question?" --config path/to/config.yaml
+multiagent-debugger debug "Question?" --config path/to/config.yaml
 ```
 
 ### Enable Verbose Output
 ```bash
-python -m multiagent_debugger debug "Question?" --verbose
+multiagent-debugger debug "Question?" --verbose
 ```
 
 ## How It Works

@@ -185,7 +185,7 @@ def setup(output: Optional[str] = None):
                 click.echo(f"  export {var}=your_api_key_here")
     
     click.echo("\nSetup complete! You can now run:")
-    click.echo(f"  python -m multiagent_debugger debug 'your question here' --config {output}")
+    click.echo(f"multiagent-debugger debug 'your question here' --config {output}")
 
 @cli.command()
 def list_providers():
