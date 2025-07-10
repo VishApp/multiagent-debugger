@@ -8,8 +8,6 @@ Watch the multiagent-debugger in action:
 
 [![Multi-Agent Debugger Demo](https://img.youtube.com/vi/9VTe12iVQ-A/0.jpg)](https://youtu.be/9VTe12iVQ-A?feature=shared)
 
-[📺 View Demo Video](https://youtu.be/9VTe12iVQ-A?feature=shared)
-
 ## Features
 
 - **Multi-Agent Architecture**
