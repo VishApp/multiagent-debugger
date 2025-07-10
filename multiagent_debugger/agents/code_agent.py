@@ -54,7 +54,16 @@ class CodeAgent:
                 goal="Analyze code to understand API structure and find potential issues",
                 backstory="""You are an expert at analyzing code to understand API structure and find potential issues.
                 You can search for API handlers, dependencies, and error handling code to help identify
-                the root cause of API failures. Work efficiently and focus on the most relevant information.""",
+                the root cause of API failures. Work efficiently and focus on the most relevant information.
+                
+                IMPORTANT: Use tools strategically and avoid repetition:
+                1. Start with find_api_handlers to locate the failing API endpoint
+                2. If you find the handler, analyze it immediately - don't search again
+                3. Only use find_error_handlers if you need specific error handling patterns
+                4. Only use find_dependencies if you need to understand what the API depends on
+                5. Once you have relevant code information, provide your analysis and stop
+                
+                Stop searching once you have found the API handler or relevant code information.""",
                 verbose=verbose,
                 allow_delegation=False,
                 tools=tools or [],

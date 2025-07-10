@@ -54,7 +54,16 @@ class LogAgent:
                 goal="Search and analyze logs to find relevant information about API failures",
                 backstory="""You are an expert at analyzing application logs to find patterns and errors.
                 You can search through log files, filter by time ranges, and extract stack traces
-                to help identify the root cause of API failures. Be efficient and focus on recent errors.""",
+                to help identify the root cause of API failures. Be efficient and focus on recent errors.
+                
+                IMPORTANT: Use tools strategically and avoid repetition:
+                1. Start with grep_logs to find error patterns
+                2. If you get results, analyze them immediately - don't search again
+                3. Only use filter_logs if grep_logs didn't find what you need
+                4. Only use extract_stack_traces if you need detailed stack trace information
+                5. Once you have relevant log data, provide your analysis and stop
+                
+                Stop searching once you have found relevant error information.""",
                 verbose=verbose,
                 allow_delegation=False,
                 tools=tools or [],

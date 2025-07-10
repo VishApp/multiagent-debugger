@@ -9,7 +9,7 @@ from multiagent_debugger.agents.log_agent import LogAgent
 from multiagent_debugger.agents.code_agent import CodeAgent
 from multiagent_debugger.agents.root_cause_agent import RootCauseAgent
 
-from multiagent_debugger.tools.log_tools import create_grep_logs_tool, create_filter_logs_tool, create_extract_stack_traces_tool
+from multiagent_debugger.tools.log_tools import create_grep_logs_tool, create_filter_logs_tool, create_extract_stack_traces_tool, clear_tool_cache
 from multiagent_debugger.tools.code_tools import create_find_api_handlers_tool, create_find_dependencies_tool, create_find_error_handlers_tool
 from multiagent_debugger.utils import set_crewai_env_vars, get_env_var_name_for_provider
 
@@ -107,7 +107,7 @@ class DebuggerCrew:
             verbose=True,
             process=Process.sequential,  # Use sequential process
             max_rpm=10,  # Maximum requests per minute
-            max_iter=1,  # Maximum iterations for each task
+            max_iter=1,  # Reduced to 1 to prevent infinite loops
             memory=True, # Enable memory for better context retention
             cache=True,   # Enable cache to avoid repeated LLM calls
         )
@@ -123,6 +123,9 @@ class DebuggerCrew:
         Returns:
             String containing the debugging result
         """
+        # Clear tool cache before each debug session
+        clear_tool_cache()
+
         # Create tasks
         tasks = self._create_tasks(question)
         self.crew.tasks = tasks
@@ -158,7 +161,7 @@ class DebuggerCrew:
             description=f"Analyze the following debugging question: '{question}'. Determine what information is needed to answer it.",
             agent=self.question_analyzer_agent,
             expected_output="A detailed analysis of the question and what information is needed to answer it.",
-            max_iter=3,  # Retry up to 3 times if task fails
+            max_iter=1,  # Reduced to 1 to prevent retry loops
             async_execution=False,  # Run synchronously for better error handling
         )
         
@@ -168,7 +171,7 @@ class DebuggerCrew:
             agent=self.log_agent_agent,
             expected_output="Relevant log entries that might help answer the question.",
             context=[analyze_task],
-            max_iter=3,  # Retry up to 3 times if task fails
+            max_iter=1,  # Reduced to 1 to prevent retry loops
             async_execution=False,  # Run synchronously for better error handling
         )
         
@@ -178,7 +181,7 @@ class DebuggerCrew:
             agent=self.code_agent_agent,
             expected_output="Relevant code that might help answer the question.",
             context=[analyze_task],
-            max_iter=3,  # Retry up to 3 times if task fails
+            max_iter=1,  # Reduced to 1 to prevent retry loops
             async_execution=False,  # Run synchronously for better error handling
         )
         
@@ -188,7 +191,7 @@ class DebuggerCrew:
             agent=self.root_cause_agent_agent,
             expected_output="A clear explanation of the root cause of the API failure.",
             context=[analyze_task, log_task, code_task],
-            max_iter=3,  # Retry up to 3 times if task fails
+            max_iter=1,  # Reduced to 1 to prevent retry loops
             async_execution=False,  # Run synchronously for better error handling
         )
         
