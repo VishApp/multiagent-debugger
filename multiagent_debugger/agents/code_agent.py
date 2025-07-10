@@ -54,13 +54,13 @@ class CodeAgent:
                 goal="Analyze code to understand API structure and find potential issues",
                 backstory="""You are an expert at analyzing code to understand API structure and find potential issues.
                 You can search for API handlers, dependencies, and error handling code to help identify
-                the root cause of API failures.""",
+                the root cause of API failures. Work efficiently and focus on the most relevant information.""",
                 verbose=verbose,
                 allow_delegation=False,
                 tools=tools or [],
                 llm=llm,  # Pass the LangChain LLM object
-                max_iter=1,  # Retry up to 3 times if agent fails
-                memory=False,  # Disable memory to avoid API key issues
+                max_iter=1,  # Reduced from 3 to 1 for efficiency
+                memory=True,  # Enable memory for better context retention
             )
             return agent
         except Exception as e:

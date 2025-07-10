@@ -50,13 +50,13 @@ class QuestionAnalyzerAgent:
                 goal="Extract key entities and parameters from user questions about API failures",
                 backstory="""You are an expert at understanding user questions about API and service failures.
                 Your job is to extract key information like API routes, user IDs, timestamps, and error types
-                from natural language questions.""",
+                from natural language questions. Be quick and precise.""",
                 verbose=verbose,
                 allow_delegation=False,
                 tools=tools or [],
                 llm=llm,  # Pass the LangChain LLM object
-                max_iter=1,  # Retry up to 3 times if agent fails
-                memory=False,  # Disable memory to avoid API key issues
+                max_iter=1,  # Reduced from 3 to 1 for efficiency
+                memory=True,  # Enable memory for better context retention
             )
             return agent
         except Exception as e:

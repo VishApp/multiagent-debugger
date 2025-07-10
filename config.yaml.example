@@ -1,4 +1,5 @@
 # Example configuration file for Multiagent Debugger
+# Optimized for efficiency and performance
 
 # Paths to log files
 log_paths:
@@ -13,8 +14,8 @@ llm:
   # Provider (openai, anthropic, google, ollama)
   provider: openai
   
-  # Model name
-  model_name: gpt-4
+  # Model name - using faster models for efficiency
+  model_name: gpt-3.5-turbo  # Faster and cheaper than gpt-4
   
   # API key (optional, can use environment variable instead)
   # api_key: your_api_key_here
@@ -22,13 +23,27 @@ llm:
   # Base URL for the API (for custom endpoints)
   # api_base: https://api.openai.com/v1
   
-  # Temperature for LLM generation
-  temperature: 0.1
+  # Temperature for LLM generation - lower for more focused responses
+  temperature: 0.0  # Reduced from 0.1 for more deterministic, faster responses
   
-  # Additional provider-specific parameters
+  # Additional provider-specific parameters for efficiency
   additional_params:
-    # max_tokens: 4096
-    # top_p: 1.0
+    max_tokens: 1024  # Limit response length for faster generation
+    # top_p: 0.9  # Slightly more focused generation
 
 # Enable verbose logging (optional, defaults to false)
-verbose: false 
+verbose: false
+
+# Performance optimizations
+performance:
+  # Enable caching for repeated queries
+  enable_cache: true
+  
+  # Increase rate limits for faster execution
+  max_rpm: 100  # Requests per minute
+  
+  # Reduce iterations for faster completion
+  max_iterations: 1
+  
+  # Enable parallel processing where possible
+  parallel_execution: true 

@@ -46,13 +46,13 @@ class RootCauseAgent:
                 goal="Determine the root cause of API failures based on analysis from other agents",
                 backstory="""You are an expert at determining the root cause of API failures.
                 You analyze information from log analysis and code analysis to identify
-                the underlying cause of failures and provide clear explanations.""",
+                the underlying cause of failures and provide clear explanations. Be concise and actionable.""",
                 verbose=verbose,
                 allow_delegation=False,
                 tools=tools or [],
                 llm=llm,  # Pass the LangChain LLM object
-                max_iter=1,  # Retry up to 3 times if agent fails
-                memory=False,  # Disable memory to avoid API key issues
+                max_iter=1,  # Reduced from 3 to 1 for efficiency
+                memory=True,  # Enable memory for better context retention
             )
             return agent
         except Exception as e:

@@ -107,9 +107,9 @@ class DebuggerCrew:
             verbose=True,
             process=Process.sequential,  # Use sequential process
             max_rpm=10,  # Maximum requests per minute
-            max_iter=3,  # Maximum iterations for each task
-            memory=False,  # Disable memory to avoid API key issues
-            cache=False,   # Disable cache to avoid API key issues
+            max_iter=1,  # Maximum iterations for each task
+            memory=True, # Enable memory for better context retention
+            cache=True,   # Enable cache to avoid repeated LLM calls
         )
         
         return crew
