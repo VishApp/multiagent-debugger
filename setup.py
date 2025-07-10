@@ -54,7 +54,13 @@ setup(
         "gitpython>=3.1.31",
         "pyyaml>=6.0",
         "rich>=13.4.2",
-        "requests>=2.25.0"
+        "requests>=2.25.0",
+        "langchain-openai>=0.1.7",
+        "langchain-anthropic>=0.3.17",
+        "langchain-google-vertexai>=0.0.6",
+        "langchain-mistralai>=0.1.4",
+        "langchain-cohere>=0.1.4",
+        "crewai-tools>=0.1.0"
     ],
     entry_points={
         "console_scripts": [

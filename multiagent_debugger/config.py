@@ -71,16 +71,13 @@ def load_config(config_path: str = None) -> DebuggerConfig:
     # If no config path is provided, try to find one
     if config_path is None:
         config_path = find_config_file()
-    
-    print(f"[DEBUG] Loading config from: {config_path}")
-    
+        
     config_data = {}
     
     # Load from config file if provided
     if config_path and os.path.exists(config_path):
         with open(config_path, 'r') as f:
             config_data = yaml.safe_load(f) or {}
-        print(f"[DEBUG] Loaded config data: {config_data}")
     
     # Fix None values in additional_params
     if "llm" in config_data and config_data["llm"] is not None:
@@ -114,5 +111,4 @@ def load_config(config_path: str = None) -> DebuggerConfig:
     
     # Create config object
     config_obj = DebuggerConfig(**config_data)
-    print(f"[DEBUG] Final config log_paths: {config_obj.log_paths}")
     return config_obj 
