@@ -163,14 +163,24 @@ def setup(output: Optional[str] = None):
     provider_vars = ENV_VARS.get(provider.lower(), [])
     if provider_vars:
         click.echo(f"\nRequired environment variables for {provider}:")
-        for var in provider_vars:
-            current_value = os.environ.get(var, "Not set")
-            # Mask API keys for security
-            if "API_KEY" in var and current_value != "Not set":
-                masked_value = f"{current_value[:8]}...{current_value[-4:]}" if len(current_value) > 12 else "***"
-                click.echo(f"  {var}: {masked_value}")
-            else:
-                click.echo(f"  {var}: {current_value}")
+        for var_config in provider_vars:
+            if isinstance(var_config, dict) and "key_name" in var_config:
+                var_name = var_config["key_name"]
+                current_value = os.environ.get(var_name, "Not set")
+                # Mask API keys for security
+                if "API_KEY" in var_name and current_value != "Not set":
+                    masked_value = f"{current_value[:8]}...{current_value[-4:]}" if len(current_value) > 12 else "***"
+                    click.echo(f"  {var_name}: {masked_value}")
+                else:
+                    click.echo(f"  {var_name}: {current_value}")
+            elif isinstance(var_config, str):
+                # Handle legacy string format for backward compatibility
+                current_value = os.environ.get(var_config, "Not set")
+                if "API_KEY" in var_config and current_value != "Not set":
+                    masked_value = f"{current_value[:8]}...{current_value[-4:]}" if len(current_value) > 12 else "***"
+                    click.echo(f"  {var_config}: {masked_value}")
+                else:
+                    click.echo(f"  {var_config}: {current_value}")
     
     # Get API key (optional, can use environment variable)
     api_key = click.prompt(
@@ -182,14 +192,23 @@ def setup(output: Optional[str] = None):
     
     # If user provided an API key, export it in the current process and print export command
     if api_key and provider_vars:
-        for var in provider_vars:
-            if "API_KEY" in var:
-                os.environ[var] = api_key
-                click.echo(f"\nExported {var} for this session.")
+        for var_config in provider_vars:
+            if isinstance(var_config, dict) and "key_name" in var_config:
+                var_name = var_config["key_name"]
+                if "API_KEY" in var_name:
+                    os.environ[var_name] = api_key
+                    click.echo(f"\nExported {var_name} for this session.")
+                    click.echo(f"To use this API key in your shell, run:")
+                    # Mask the API key in the export command for security
+                    masked_key = f"{api_key[:8]}...{api_key[-4:]}" if len(api_key) > 12 else "***"
+                    click.echo(f"  export {var_name}={masked_key}")
+            elif isinstance(var_config, str) and "API_KEY" in var_config:
+                # Handle legacy string format
+                os.environ[var_config] = api_key
+                click.echo(f"\nExported {var_config} for this session.")
                 click.echo(f"To use this API key in your shell, run:")
-                # Mask the API key in the export command for security
                 masked_key = f"{api_key[:8]}...{api_key[-4:]}" if len(api_key) > 12 else "***"
-                click.echo(f"  export {var}={masked_key}")
+                click.echo(f"  export {var_config}={masked_key}")
     
     # Get API base (optional)
     default_api_base = DEFAULT_API_BASES.get(provider.lower())
@@ -269,9 +288,14 @@ def setup(output: Optional[str] = None):
     # Show environment variable setup instructions
     if not api_key and provider_vars:
         click.echo(f"\nTo use environment variables instead of hardcoded API keys:")
-        for var in provider_vars:
-            if "API_KEY" in var:
-                click.echo(f"  export {var}=your_api_key_here")
+        for var_config in provider_vars:
+            if isinstance(var_config, dict) and "key_name" in var_config:
+                var_name = var_config["key_name"]
+                if "API_KEY" in var_name:
+                    click.echo(f"  export {var_name}=your_api_key_here")
+            elif isinstance(var_config, str) and "API_KEY" in var_config:
+                # Handle legacy string format
+                click.echo(f"  export {var_config}=your_api_key_here")
     
     click.echo("\nSetup complete! You can now run:")
     click.echo(f"multiagent-debugger debug 'your question here' --config {output}")
