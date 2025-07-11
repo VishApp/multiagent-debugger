@@ -8,6 +8,7 @@ from multiagent_debugger.config import load_config
 from multiagent_debugger.crew import DebuggerCrew
 from multiagent_debugger.utils import llm_config_manager
 from multiagent_debugger.utils.constants import ENV_VARS, DEFAULT_API_BASES
+from multiagent_debugger import __version__
 
 def expand_log_paths(path: str) -> List[str]:
     """Expand a log path to a list of actual log files.
@@ -72,6 +73,7 @@ def is_log_file(filename: str) -> bool:
     return any(pattern in filename_lower for pattern in log_patterns)
 
 @click.group()
+@click.version_option(version=__version__, prog_name="multiagent-debugger")
 def cli():
     """Multi-agent debugger CLI."""
     pass
@@ -293,6 +295,10 @@ def list_models(provider: str):
         models = llm_config_manager.get_models_for_provider(provider)
         if models:
             click.echo(f"Available models for {provider}:")
+            # Check if we're using fallback models (no remote data available)
+            remote_models = llm_config_manager.get_model_info()
+            if not remote_models:
+                click.echo("(Using fallback models - remote model data unavailable)")
             for model in models:
                 details = llm_config_manager.get_model_details(model)
                 if details:

@@ -78,7 +78,7 @@ class RootCauseAgent:
                 temperature=temperature,
                 anthropic_api_key=api_key
             )
-        elif provider == "google":
+        elif provider in ["google", "gemini"]:
             from langchain_google_vertexai import ChatVertexAI
             return ChatVertexAI(
                 model_name=model,
@@ -153,7 +153,7 @@ class RootCauseAgent:
                 "anthropic_api_key": api_key,
                 "anthropic_api_url": api_base,
             }
-        elif provider == "google":
+        elif provider in ["google", "gemini"]:
             config = {
                 "config_list": [{"model": model}],
                 "temperature": temperature,
