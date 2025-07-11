@@ -47,9 +47,6 @@ class DebuggerCrew:
             env_var_name = get_env_var_name_for_provider(provider, "api_key")
             if env_var_name:
                 os.environ[env_var_name] = api_key
-                print(f"DEBUG: Set {env_var_name} at crew level")
-            else:
-                print(f"WARNING: No environment variable found for provider {provider}")
         
         # Set CrewAI environment variables for memory
         set_crewai_env_vars(provider, api_key)
@@ -102,21 +99,10 @@ class DebuggerCrew:
             provider = self.config.get("llm", {}).get("provider", "openai").lower()
         
         # Configure memory based on provider
-        memory_config = {}
-        if provider == "openai":
-            # Only enable memory for OpenAI as CrewAI's memory system works best with OpenAI
-            memory_config = {
-                "memory": True,
-                "cache": True,
-                "memory_key": "multiagent_debugger_v1"
-            }
-        else:
-            # For non-OpenAI providers, disable memory to avoid CrewAI memory issues
-            print(f"DEBUG: Disabling memory for provider {provider} due to CrewAI limitations")
-            memory_config = {
-                "memory": False,
-                "cache": True
-            }
+        memory_config = {
+            "memory": False,
+            "cache": True
+        }
         
         # Create crew with retry configuration
         crew = Crew(

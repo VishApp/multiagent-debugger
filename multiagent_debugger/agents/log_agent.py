@@ -5,9 +5,11 @@ from typing import Dict, Any, List, Optional
 from datetime import datetime, timedelta
 
 from crewai import Agent
-from langchain.tools import BaseTool
+from crewai.tools import tool
+from crewai.tools import BaseTool
+from typing import Dict, Any, List, Optional
 
-from multiagent_debugger.utils import get_verbose_flag, create_langchain_llm, get_agent_llm_config
+from multiagent_debugger.utils import get_verbose_flag, create_crewai_llm, get_agent_llm_config
 
 class LogAgent:
     """Agent that analyzes logs to find relevant information about API failures."""
@@ -32,7 +34,7 @@ class LogAgent:
         else:
             self.log_paths = config.get("log_paths", [])
         
-    def create_agent(self, tools: List[BaseTool] = None) -> Agent:
+    def create_agent(self, tools: List = None) -> Agent:
         """Create and return the CrewAI agent.
         
         Args:
@@ -45,8 +47,8 @@ class LogAgent:
         provider, model, temperature, api_key, api_base = get_agent_llm_config(self.llm_config)
         verbose = get_verbose_flag(self.config)
         
-        # Create the appropriate LangChain LLM based on provider
-        llm = create_langchain_llm(provider, model, temperature, api_key, api_base)
+        # Create LLM
+        llm = create_crewai_llm(provider, model, temperature, api_key, api_base)
         
         try:
             agent = Agent(

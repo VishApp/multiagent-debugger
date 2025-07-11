@@ -4,9 +4,10 @@ import re
 import os
 
 from crewai import Agent
-from langchain.tools import BaseTool
+from crewai.tools import tool
+from crewai.tools import BaseTool
 
-from multiagent_debugger.utils import get_verbose_flag, create_langchain_llm, get_agent_llm_config
+from multiagent_debugger.utils import get_verbose_flag, create_crewai_llm, get_agent_llm_config
 
 class QuestionAnalyzerAgent:
     """Agent that analyzes the user's question to extract relevant entities."""
@@ -37,9 +38,8 @@ class QuestionAnalyzerAgent:
         # Get LLM configuration parameters
         provider, model, temperature, api_key, api_base = get_agent_llm_config(self.llm_config)
         verbose = get_verbose_flag(self.config)
-        
-        # Create the appropriate LangChain LLM based on provider
-        llm = create_langchain_llm(provider, model, temperature, api_key, api_base)
+        # Create LLM
+        llm = create_crewai_llm(provider, model, temperature, api_key, api_base)
         
         # Debug: Print LLM info
         print(f"DEBUG: Using {provider} LLM: {model} with temperature {temperature}")
@@ -54,7 +54,7 @@ class QuestionAnalyzerAgent:
                 verbose=verbose,
                 allow_delegation=False,
                 tools=tools or [],
-                llm=llm,  # Pass the LangChain LLM object
+                llm=llm,
                 max_iter=1,  # Reduced from 3 to 1 for efficiency
                 memory=False,  # Disable individual agent memory, use crew-level memory instead
             )

@@ -7,7 +7,7 @@ from datetime import datetime, timedelta
 
 from .constants import (
     MODEL_INFO_URL, CACHE_DIR, CACHE_FILE, CACHE_EXPIRY_HOURS,
-    ENV_VARS, DEFAULT_API_BASES, CREWAI_ENV_VARS
+    ENV_VARS, DEFAULT_API_BASES, CREWAI_ENV_VARS, MODELS
 )
 
 class LLMConfigManager:
@@ -113,288 +113,10 @@ class LLMConfigManager:
     
     def _get_fallback_models(self, provider: str) -> List[str]:
         """Get fallback models for a provider when remote data is unavailable."""
-        fallback_models = {
-            "openai": [
-                "gpt-4",
-                "gpt-4.1",
-                "gpt-4.1-mini-2025-04-14",
-                "gpt-4.1-nano-2025-04-14",
-                "gpt-4o",
-                "gpt-4o-mini",
-                "o1-mini",
-                "o1-preview",
-            ],
-            "anthropic": [
-                "claude-3-5-sonnet-20240620",
-                "claude-3-sonnet-20240229",
-                "claude-3-opus-20240229",
-                "claude-3-haiku-20240307",
-            ],
-            "google": [
-                "gemini/gemini-1.5-flash",
-                "gemini/gemini-1.5-pro",
-                "gemini/gemini-2.0-flash-lite-001",
-                "gemini/gemini-2.0-flash-001",
-                "gemini/gemini-2.0-flash-thinking-exp-01-21",
-                "gemini/gemini-2.5-flash-preview-04-17",
-                "gemini/gemini-2.5-pro-exp-03-25",
-                "gemini/gemini-gemma-2-9b-it",
-                "gemini/gemini-gemma-2-27b-it",
-                "gemini/gemma-3-1b-it",
-                "gemini/gemma-3-4b-it",
-                "gemini/gemma-3-12b-it",
-                "gemini/gemma-3-27b-it",
-            ],
-            "gemini": [
-                "gemini/gemini-1.5-flash",
-                "gemini/gemini-1.5-pro",
-                "gemini/gemini-2.0-flash-lite-001",
-                "gemini/gemini-2.0-flash-001",
-                "gemini/gemini-2.0-flash-thinking-exp-01-21",
-                "gemini/gemini-2.5-flash-preview-04-17",
-                "gemini/gemini-2.5-pro-exp-03-25",
-                "gemini/gemini-gemma-2-9b-it",
-                "gemini/gemini-gemma-2-27b-it",
-                "gemini/gemma-3-1b-it",
-                "gemini/gemma-3-4b-it",
-                "gemini/gemma-3-12b-it",
-                "gemini/gemini-3-27b-it",
-            ],
-            "nvidia_nim": [
-                "nvidia_nim/nvidia/mistral-nemo-minitron-8b-8k-instruct",
-                "nvidia_nim/nvidia/nemotron-4-mini-hindi-4b-instruct",
-                "nvidia_nim/nvidia/llama-3.1-nemotron-70b-instruct",
-                "nvidia_nim/nvidia/llama3-chatqa-1.5-8b",
-                "nvidia_nim/nvidia/llama3-chatqa-1.5-70b",
-                "nvidia_nim/nvidia/vila",
-                "nvidia_nim/nvidia/neva-22",
-                "nvidia_nim/nvidia/nemotron-mini-4b-instruct",
-                "nvidia_nim/nvidia/usdcode-llama3-70b-instruct",
-                "nvidia_nim/nvidia/nemotron-4-340b-instruct",
-                "nvidia_nim/meta/codellama-70b",
-                "nvidia_nim/meta/llama2-70b",
-                "nvidia_nim/meta/llama3-8b-instruct",
-                "nvidia_nim/meta/llama3-70b-instruct",
-                "nvidia_nim/meta/llama-3.1-8b-instruct",
-                "nvidia_nim/meta/llama-3.1-70b-instruct",
-                "nvidia_nim/meta/llama-3.1-405b-instruct",
-                "nvidia_nim/meta/llama-3.2-1b-instruct",
-                "nvidia_nim/meta/llama-3.2-3b-instruct",
-                "nvidia_nim/meta/llama-3.2-11b-vision-instruct",
-                "nvidia_nim/meta/llama-3.2-90b-vision-instruct",
-                "nvidia_nim/meta/llama-3.1-70b-instruct",
-                "nvidia_nim/google/gemma-7b",
-                "nvidia_nim/google/gemma-2b",
-                "nvidia_nim/google/codegemma-7b",
-                "nvidia_nim/google/codegemma-1.1-7b",
-                "nvidia_nim/google/recurrentgemma-2b",
-                "nvidia_nim/google/gemma-2-9b-it",
-                "nvidia_nim/google/gemma-2-27b-it",
-                "nvidia_nim/google/gemma-2-2b-it",
-                "nvidia_nim/google/deplot",
-                "nvidia_nim/google/paligemma",
-                "nvidia_nim/mistralai/mistral-7b-instruct-v0.2",
-                "nvidia_nim/mistralai/mixtral-8x7b-instruct-v0.1",
-                "nvidia_nim/mistralai/mistral-large",
-                "nvidia_nim/mistralai/mixtral-8x22b-instruct-v0.1",
-                "nvidia_nim/mistralai/mistral-7b-instruct-v0.3",
-                "nvidia_nim/nv-mistralai/mistral-nemo-12b-instruct",
-                "nvidia_nim/mistralai/mamba-codestral-7b-v0.1",
-                "nvidia_nim/microsoft/phi-3-mini-128k-instruct",
-                "nvidia_nim/microsoft/phi-3-mini-4k-instruct",
-                "nvidia_nim/microsoft/phi-3-small-8k-instruct",
-                "nvidia_nim/microsoft/phi-3-small-128k-instruct",
-                "nvidia_nim/microsoft/phi-3-medium-4k-instruct",
-                "nvidia_nim/microsoft/phi-3-medium-128k-instruct",
-                "nvidia_nim/microsoft/phi-3.5-mini-instruct",
-                "nvidia_nim/microsoft/phi-3.5-moe-instruct",
-                "nvidia_nim/microsoft/kosmos-2",
-                "nvidia_nim/microsoft/phi-3-vision-128k-instruct",
-                "nvidia_nim/microsoft/phi-3.5-vision-instruct",
-                "nvidia_nim/databricks/dbrx-instruct",
-                "nvidia_nim/snowflake/arctic",
-                "nvidia_nim/aisingapore/sea-lion-7b-instruct",
-                "nvidia_nim/ibm/granite-8b-code-instruct",
-                "nvidia_nim/ibm/granite-34b-code-instruct",
-                "nvidia_nim/ibm/granite-3.0-8b-instruct",
-                "nvidia_nim/ibm/granite-3.0-3b-a800m-instruct",
-                "nvidia_nim/mediatek/breeze-7b-instruct",
-                "nvidia_nim/upstage/solar-10.7b-instruct",
-                "nvidia_nim/writer/palmyra-med-70b-32k",
-                "nvidia_nim/writer/palmyra-med-70b",
-                "nvidia_nim/writer/palmyra-fin-70b-32k",
-                "nvidia_nim/01-ai/yi-large",
-                "nvidia_nim/deepseek-ai/deepseek-coder-6.7b-instruct",
-                "nvidia_nim/rakuten/rakutenai-7b-instruct",
-                "nvidia_nim/rakuten/rakutenai-7b-chat",
-                "nvidia_nim/baichuan-inc/baichuan2-13b-chat",
-            ],
-            "groq": [
-                "groq/llama-3.1-8b-instant",
-                "groq/llama-3.1-70b-versatile",
-                "groq/llama-3.1-405b-reasoning",
-                "groq/gemma2-9b-it",
-                "groq/gemma-7b-it",
-            ],
-            "ollama": ["ollama/llama3.1", "ollama/mixtral"],
-            "watson": [
-                "watsonx/meta-llama/llama-3-1-70b-instruct",
-                "watsonx/meta-llama/llama-3-1-8b-instruct",
-                "watsonx/meta-llama/llama-3-2-11b-vision-instruct",
-                "watsonx/meta-llama/llama-3-2-1b-instruct",
-                "watsonx/meta-llama/llama-3-2-90b-vision-instruct",
-                "watsonx/meta-llama/llama-3-405b-instruct",
-                "watsonx/mistral/mistral-large",
-                "watsonx/ibm/granite-3-8b-instruct",
-            ],
-            "bedrock": [
-                "bedrock/us.amazon.nova-pro-v1:0",
-                "bedrock/us.amazon.nova-micro-v1:0",
-                "bedrock/us.amazon.nova-lite-v1:0",
-                "bedrock/us.anthropic.claude-3-5-sonnet-20240620-v1:0",
-                "bedrock/us.anthropic.claude-3-5-haiku-20241022-v1:0",
-                "bedrock/us.anthropic.claude-3-5-sonnet-20241022-v2:0",
-                "bedrock/us.anthropic.claude-3-7-sonnet-20250219-v1:0",
-                "bedrock/us.anthropic.claude-3-sonnet-20240229-v1:0",
-                "bedrock/us.anthropic.claude-3-opus-20240229-v1:0",
-                "bedrock/us.anthropic.claude-3-haiku-20240307-v1:0",
-                "bedrock/us.meta.llama3-2-11b-instruct-v1:0",
-                "bedrock/us.meta.llama3-2-3b-instruct-v1:0",
-                "bedrock/us.meta.llama3-2-90b-instruct-v1:0",
-                "bedrock/us.meta.llama3-2-1b-instruct-v1:0",
-                "bedrock/us.meta.llama3-1-8b-instruct-v1:0",
-                "bedrock/us.meta.llama3-1-70b-instruct-v1:0",
-                "bedrock/us.meta.llama3-3-70b-instruct-v1:0",
-                "bedrock/us.meta.llama3-1-405b-instruct-v1:0",
-                "bedrock/eu.anthropic.claude-3-5-sonnet-20240620-v1:0",
-                "bedrock/eu.anthropic.claude-3-sonnet-20240229-v1:0",
-                "bedrock/eu.anthropic.claude-3-haiku-20240307-v1:0",
-                "bedrock/eu.meta.llama3-2-3b-instruct-v1:0",
-                "bedrock/eu.meta.llama3-2-1b-instruct-v1:0",
-                "bedrock/apac.anthropic.claude-3-5-sonnet-20240620-v1:0",
-                "bedrock/apac.anthropic.claude-3-5-sonnet-20241022-v2:0",
-                "bedrock/apac.anthropic.claude-3-sonnet-20240229-v1:0",
-                "bedrock/apac.anthropic.claude-3-haiku-20240307-v1:0",
-                "bedrock/amazon.nova-pro-v1:0",
-                "bedrock/amazon.nova-micro-v1:0",
-                "bedrock/amazon.nova-lite-v1:0",
-                "bedrock/anthropic.claude-3-5-sonnet-20240620-v1:0",
-                "bedrock/anthropic.claude-3-5-haiku-20241022-v1:0",
-                "bedrock/anthropic.claude-3-5-sonnet-20241022-v2:0",
-                "bedrock/anthropic.claude-3-7-sonnet-20250219-v1:0",
-                "bedrock/anthropic.claude-3-sonnet-20240229-v1:0",
-                "bedrock/anthropic.claude-3-opus-20240229-v1:0",
-                "bedrock/anthropic.claude-3-haiku-20240307-v1:0",
-                "bedrock/anthropic.claude-v2:1",
-                "bedrock/anthropic.claude-v2",
-                "bedrock/anthropic.claude-instant-v1",
-                "bedrock/meta.llama3-1-405b-instruct-v1:0",
-                "bedrock/meta.llama3-1-70b-instruct-v1:0",
-                "bedrock/meta.llama3-1-8b-instruct-v1:0",
-                "bedrock/meta.llama3-70b-instruct-v1:0",
-                "bedrock/meta.llama3-8b-instruct-v1:0",
-                "bedrock/amazon.titan-text-lite-v1",
-                "bedrock/amazon.titan-text-express-v1",
-                "bedrock/cohere.command-text-v14",
-                "bedrock/ai21.j2-mid-v1",
-                "bedrock/ai21.j2-ultra-v1",
-                "bedrock/ai21.jamba-instruct-v1:0",
-                "bedrock/mistral.mistral-7b-instruct-v0:2",
-                "bedrock/mistral.mixtral-8x7b-instruct-v0:1",
-            ],
-            "huggingface": [
-                "huggingface/meta-llama/Meta-Llama-3.1-8B-Instruct",
-                "huggingface/mistralai/Mixtral-8x7B-Instruct-v0.1",
-                "huggingface/tiiuae/falcon-180B-chat",
-                "huggingface/google/gemma-7b-it",
-            ],
-            "sambanova": [
-                "sambanova/Meta-Llama-3.3-70B-Instruct",
-                "sambanova/QwQ-32B-Preview",
-                "sambanova/Qwen2.5-72B-Instruct",
-                "sambanova/Qwen2.5-Coder-32B-Instruct",
-                "sambanova/Meta-Llama-3.1-405B-Instruct",
-                "sambanova/Meta-Llama-3.1-70B-Instruct",
-                "sambanova/Meta-Llama-3.1-8B-Instruct",
-                "sambanova/Llama-3.2-90B-Vision-Instruct",
-                "sambanova/Llama-3.2-11B-Vision-Instruct",
-                "sambanova/Meta-Llama-3.2-3B-Instruct",
-                "sambanova/Meta-Llama-3.2-1B-Instruct",
-            ],
-            "mistral": [
-                "mistral-large-latest",
-                "mistral-medium-latest", 
-                "mistral-small-latest",
-                "open-mistral-7b",
-                "open-mistral-8x7b",
-                "open-mistral-8x22b",
-                "mistral-7b-instruct-v0.2",
-                "mixtral-8x7b-instruct-v0.1",
-                "mixtral-8x22b-instruct-v0.1",
-            ],
-            "cohere": [
-                "command",
-                "command-light", 
-                "command-nightly",
-                "command-light-nightly",
-                "base",
-                "base-light",
-                "command-text-v14",
-            ],
-            "deepseek": [
-                "deepseek-chat",
-                "deepseek-coder",
-                "deepseek-coder-33b-instruct",
-                "deepseek-coder-6.7b-instruct",
-            ],
-            "perplexity": [
-                "llama-3.1-8b-instruct",
-                "llama-3.1-70b-instruct",
-                "llama-3.1-405b-instruct",
-                "mixtral-8x7b-instruct",
-                "codellama-70b-instruct",
-                "mistral-7b-instruct",
-            ],
-            "azure": [
-                "gpt-4",
-                "gpt-4-turbo",
-                "gpt-4o",
-                "gpt-4o-mini",
-                "gpt-3.5-turbo",
-                "gpt-3.5-turbo-16k",
-            ],
-            "meta_llama": [
-                "meta-llama/Llama-2-70b-chat-hf",
-                "meta-llama/Llama-2-13b-chat-hf",
-                "meta-llama/Llama-2-7b-chat-hf",
-                "meta-llama/Llama-3-8b-instruct",
-                "meta-llama/Llama-3-70b-instruct",
-                "meta-llama/Llama-3.1-8b-instruct",
-                "meta-llama/Llama-3.1-70b-instruct",
-                "meta-llama/Llama-3.1-405b-instruct",
-            ],
-            "together_ai": [
-                "togethercomputer/llama-2-70b",
-                "togethercomputer/llama-2-13b",
-                "togethercomputer/llama-2-7b",
-                "meta-llama/Llama-2-70b-chat-hf",
-                "meta-llama/Llama-2-13b-chat-hf",
-                "meta-llama/Llama-2-7b-chat-hf",
-            ],
-            "fireworks_ai": [
-                "accounts/fireworks/models/llama-v2-7b-chat",
-                "accounts/fireworks/models/llama-v2-13b-chat",
-                "accounts/fireworks/models/llama-v2-70b-chat",
-                "accounts/fireworks/models/mistral-7b-instruct",
-                "accounts/fireworks/models/mixtral-8x7b-instruct",
-            ],
-        }
+        from .constants import MODELS
         
-        # If no provider specified, return all provider names
-        if not provider:
-            return list(fallback_models.keys())
-        
-        return fallback_models.get(provider.lower(), [])
+        # Use the comprehensive MODELS configuration
+        return MODELS.get(provider.lower(), [])
     
     def get_model_details(self, model_name: str) -> Optional[Dict[str, Any]]:
         """Get details for a specific model."""
@@ -507,6 +229,52 @@ def get_llm_config(llm_config: Any) -> Dict[str, Any]:
     
     return config
 
+def get_memory_config(config: Any) -> Dict[str, Any]:
+    """Extract memory configuration from config object.
+    
+    Args:
+        config: Configuration object or dictionary containing memory settings
+        
+    Returns:
+        Dictionary with memory configuration (enabled, memory_key, cache)
+    """
+    # Handle both dict and config objects
+    if hasattr(config, 'memory'):
+        # Object-based config (e.g., DebuggerConfig)
+        memory_config = config.memory
+        if hasattr(memory_config, 'enabled'):
+            memory_enabled = memory_config.enabled
+        elif hasattr(memory_config, 'get'):
+            memory_enabled = memory_config.get("enabled", False)
+        else:
+            memory_enabled = False
+            
+        if hasattr(memory_config, 'memory_key'):
+            memory_key = memory_config.memory_key
+        elif hasattr(memory_config, 'get'):
+            memory_key = memory_config.get("memory_key", "multiagent_debugger_v1")
+        else:
+            memory_key = "multiagent_debugger_v1"
+            
+        if hasattr(memory_config, 'cache'):
+            cache_enabled = memory_config.cache
+        elif hasattr(memory_config, 'get'):
+            cache_enabled = memory_config.get("cache", True)
+        else:
+            cache_enabled = True
+    else:
+        # Dictionary-based config
+        memory_config = config.get("memory", {})
+        memory_enabled = memory_config.get("enabled", False) if isinstance(memory_config, dict) else False
+        memory_key = memory_config.get("memory_key", "multiagent_debugger_v1") if isinstance(memory_config, dict) else "multiagent_debugger_v1"
+        cache_enabled = memory_config.get("cache", True) if isinstance(memory_config, dict) else True
+    
+    return {
+        "enabled": memory_enabled,
+        "memory_key": memory_key,
+        "cache": cache_enabled
+    }
+
 def get_verbose_flag(config: Any) -> bool:
     """Get the verbose flag from config.
     
@@ -547,95 +315,84 @@ def set_crewai_env_vars(provider: str, api_key: str = None):
         # Note: CrewAI may still require OpenAI for some internal operations
         # We handle this by disabling memory for non-OpenAI providers
 
-def create_langchain_llm(provider: str, model: str, temperature: float, api_key: str = None, api_base: str = None):
-    """Create the appropriate LangChain LLM based on provider.
+def create_crewai_llm(provider: str, model: str, temperature: float, api_key: str = None, api_base: str = None):
+    """Create a CrewAI LLM object directly.
     
     Args:
-        provider: The LLM provider (openai, anthropic, google, mistral, cohere)
+        provider: The LLM provider (openai, anthropic, google, gemini, deepseek, etc.)
         model: The model name
         temperature: The temperature setting
         api_key: The API key for the provider
         api_base: The API base URL (if needed)
         
     Returns:
-        A LangChain LLM object
+        A CrewAI LLM object
     """
-    if provider == "openai":
-        from langchain_openai import ChatOpenAI
-        return ChatOpenAI(
+    from crewai import LLM
+    import os
+    
+    # Set the API key in environment if provided
+    if api_key:
+        if provider.lower() in ["openai", "gpt"]:
+            os.environ["OPENAI_API_KEY"] = api_key
+        elif provider.lower() in ["anthropic", "claude"]:
+            os.environ["ANTHROPIC_API_KEY"] = api_key
+        elif provider.lower() in ["google", "gemini"]:
+            os.environ["GOOGLE_API_KEY"] = api_key
+        elif provider.lower() == "deepseek":
+            os.environ["DEEPSEEK_API_KEY"] = api_key
+        elif provider.lower() == "nvidia_nim":
+            os.environ["NVIDIA_NIM_API_KEY"] = api_key
+        elif provider.lower() == "groq":
+            os.environ["GROQ_API_KEY"] = api_key
+        elif provider.lower() == "watson":
+            os.environ["WATSONX_APIKEY"] = api_key
+        elif provider.lower() == "bedrock":
+            # Bedrock uses AWS credentials, not a single API key
+            pass
+        elif provider.lower() == "azure":
+            os.environ["AZURE_API_KEY"] = api_key
+        elif provider.lower() == "cerebras":
+            os.environ["CEREBRAS_API_KEY"] = api_key
+        elif provider.lower() == "huggingface":
+            os.environ["HF_TOKEN"] = api_key
+        elif provider.lower() == "sambanova":
+            os.environ["SAMBANOVA_API_KEY"] = api_key
+        elif provider.lower() == "ollama":
+            # Ollama doesn't need API key, but we can set base URL
+            if api_base:
+                os.environ["OLLAMA_BASE_URL"] = api_base
+    
+    try:
+        # Create the LLM object with the appropriate model identifier
+        llm = LLM(
             model=model,
-            temperature=temperature,
-            openai_api_key=api_key,
-            openai_api_base=api_base
+            api_key=api_key,
+            temperature=temperature
         )
-    elif provider == "anthropic":
-        from langchain_anthropic import ChatAnthropic
-        return ChatAnthropic(
-            model=model,
-            temperature=temperature,
-            anthropic_api_key=api_key
-        )
-    elif provider in ["google", "gemini"]:
-        from langchain_google_genai import ChatGoogleGenerativeAI
-        return ChatGoogleGenerativeAI(
-            model=model,
-            temperature=temperature,
-            google_api_key=api_key
-        )
-    elif provider == "mistral":
-        from langchain_mistralai import ChatMistralAI
-        return ChatMistralAI(
-            model=model,
-            temperature=temperature,
-            mistral_api_key=api_key
-        )
-    elif provider == "cohere":
-        from langchain_cohere import ChatCohere
-        return ChatCohere(
-            model=model,
-            temperature=temperature,
-            cohere_api_key=api_key
-        )
-    elif provider == "mistral":
-        from langchain_mistralai import ChatMistralAI
-        return ChatMistralAI(
-            model=model,
-            temperature=temperature,
-            mistral_api_key=api_key
-        )
-    elif provider == "deepseek":
-        from langchain_openai import ChatOpenAI
-        return ChatOpenAI(
-            model=model,
-            temperature=temperature,
-            openai_api_key=api_key,
-            openai_api_base="https://api.deepseek.com/v1"
-        )
-    elif provider == "perplexity":
-        from langchain_openai import ChatOpenAI
-        return ChatOpenAI(
-            model=model,
-            temperature=temperature,
-            openai_api_key=api_key,
-            openai_api_base="https://api.perplexity.ai"
-        )
-    elif provider == "azure":
-        from langchain_openai import ChatOpenAI
-        return ChatOpenAI(
-            model=model,
-            temperature=temperature,
-            openai_api_key=api_key,
-            openai_api_base=api_base
-        )
-    else:
-        # Fallback to OpenAI
-        from langchain_openai import ChatOpenAI
-        return ChatOpenAI(
-            model=model,
-            temperature=temperature,
-            openai_api_key=api_key,
-            openai_api_base=api_base
-        )
+        
+        return llm
+        
+    except Exception as e:
+        print(f"ERROR: Failed to instantiate {provider} LLM: {e}")
+        print(f"DEBUG: Model: {model}, API Key: {'Set' if api_key else 'None'}")
+        import traceback
+        print(traceback.format_exc())
+        raise
+
+# Keep the old function for backward compatibility but mark it as deprecated
+def create_langchain_llm(provider: str, model: str, temperature: float, api_key: str = None, api_base: str = None):
+    """DEPRECATED: Use create_crewai_llm instead.
+    
+    This function is kept for backward compatibility but will be removed in a future version.
+    """
+    import warnings
+    warnings.warn(
+        "create_langchain_llm is deprecated. Use create_crewai_llm instead.",
+        DeprecationWarning,
+        stacklevel=2
+    )
+    return create_crewai_llm(provider, model, temperature, api_key, api_base)
 
 def get_agent_llm_config(llm_config: Any) -> tuple:
     """Extract LLM configuration parameters from config object.

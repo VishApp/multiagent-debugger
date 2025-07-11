@@ -5,9 +5,9 @@ from typing import Dict, Any, List, Optional, Set
 from pathlib import Path
 
 from crewai import Agent
-from langchain.tools import BaseTool
-
-from multiagent_debugger.utils import get_verbose_flag, create_langchain_llm, get_agent_llm_config
+from crewai.tools import tool
+from crewai.tools import BaseTool
+from multiagent_debugger.utils import get_verbose_flag, create_crewai_llm, get_agent_llm_config
 
 class CodeAgent:
     """Agent that analyzes code to find relevant information about API failures."""
@@ -45,8 +45,8 @@ class CodeAgent:
         provider, model, temperature, api_key, api_base = get_agent_llm_config(self.llm_config)
         verbose = get_verbose_flag(self.config)
         
-        # Create the appropriate LangChain LLM based on provider
-        llm = create_langchain_llm(provider, model, temperature, api_key, api_base)
+        # Create LLM
+        llm = create_crewai_llm(provider, model, temperature, api_key, api_base)
         
         try:
             agent = Agent(

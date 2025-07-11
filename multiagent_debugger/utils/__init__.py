@@ -2,24 +2,47 @@
 Utility modules for the multiagent debugger.
 """
 
+from .constants import (
+    ENV_VARS,
+    DEFAULT_API_BASES,
+    CREWAI_ENV_VARS,
+    CACHE_DIR,
+    CACHE_FILE,
+    CACHE_EXPIRY_HOURS,
+    MODEL_INFO_URL
+)
+
 from .llm_config import (
-    get_llm_config, 
-    get_verbose_flag, 
-    llm_config_manager,
-    get_env_var_for_provider,
+    LLMConfigManager,
     get_env_var_name_for_provider,
+    get_env_var_for_provider,
+    get_llm_config,
+    get_verbose_flag,
+    get_memory_config,
     set_crewai_env_vars,
-    create_langchain_llm,
-    get_agent_llm_config
+    create_crewai_llm,
+    create_langchain_llm,  # Keep for backward compatibility
+    get_agent_llm_config,
+    llm_config_manager
 )
 
 __all__ = [
-    'get_llm_config', 
-    'get_verbose_flag', 
-    'llm_config_manager',
-    'get_env_var_for_provider',
+    'ENV_VARS',
+    'DEFAULT_API_BASES', 
+    'CREWAI_ENV_VARS',
+    'CACHE_DIR',
+    'CACHE_FILE',
+    'CACHE_EXPIRY_HOURS',
+    'MODEL_INFO_URL',
+    'LLMConfigManager',
     'get_env_var_name_for_provider',
+    'get_env_var_for_provider',
+    'get_llm_config',
+    'get_verbose_flag',
+    'get_memory_config',
     'set_crewai_env_vars',
-    'create_langchain_llm',
-    'get_agent_llm_config'
+    'create_crewai_llm',
+    'create_langchain_llm',  # Keep for backward compatibility
+    'get_agent_llm_config',
+    'llm_config_manager'
 ] 
