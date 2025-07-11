@@ -67,7 +67,7 @@ class CodeAgent:
                 verbose=verbose,
                 allow_delegation=False,
                 tools=tools or [],
-                llm=llm,  # Pass the LangChain LLM object
+                llm=llm,  # Pass the CrewAI LLM object
                 max_iter=1,  # Reduced from 3 to 1 for efficiency
                 memory=False,  # Disable individual agent memory, use crew-level memory instead
             )

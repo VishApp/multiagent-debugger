@@ -1,6 +1,6 @@
 # Multi-Agent Debugger
 
-A powerful Python package that uses multiple AI agents to debug API failures by analyzing logs, code, and user questions. Built with CrewAI and LangChain, it supports LLM providers including OpenAI, Anthropic, Google, Ollama, and more.
+A powerful Python package that uses multiple AI agents to debug API failures by analyzing logs, code, and user questions. Built with CrewAI, it supports LLM providers including OpenAI, Anthropic, Google, Ollama, and more.
 
 ## 🎥 Demo Video
 
@@ -192,7 +192,6 @@ python package_builder.py dist
 - Python 3.8+
 - Dependencies:
   - crewai>=0.28.0
-  - langchain>=0.0.267
   - pydantic>=2.0.0
   - And others (see requirements.txt)
 

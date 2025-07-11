@@ -21,7 +21,7 @@ from .llm_config import (
     get_memory_config,
     set_crewai_env_vars,
     create_crewai_llm,
-    create_langchain_llm,  # Keep for backward compatibility
+    # create_langchain_llm,  # Deprecated - use create_crewai_llm instead
     get_agent_llm_config,
     llm_config_manager
 )
@@ -42,7 +42,7 @@ __all__ = [
     'get_memory_config',
     'set_crewai_env_vars',
     'create_crewai_llm',
-    'create_langchain_llm',  # Keep for backward compatibility
+    # 'create_langchain_llm',  # Deprecated - use create_crewai_llm instead
     'get_agent_llm_config',
     'llm_config_manager'
 ] 

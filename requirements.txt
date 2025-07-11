@@ -2,7 +2,6 @@ crewai>=0.28.0
 pydantic>=2.0.0
 python-dotenv>=1.0.0
 typer[all]>=0.9.0
-langchain>=0.0.267
 openai>=1.0.0
 anthropic>=0.8.0
 colorlog>=6.7.0
@@ -11,11 +10,3 @@ gitpython>=3.1.31
 pyyaml>=6.0
 rich>=13.4.2
 requests>=2.25.0
-langchain-openai>=0.1.7
-langchain-anthropic>=0.3.17
-langchain-google-vertexai>=0.0.6
-langchain-google-genai>=0.0.6
-google-generativeai==0.8.5
-google-ai-generativelanguage==0.6.15
-langchain-mistralai>=0.1.4
-langchain-cohere>=0.1.4

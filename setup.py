@@ -39,14 +39,13 @@ setup(
         "License :: OSI Approved :: MIT License",
         "Operating System :: OS Independent",
     ],
-    keywords="debugger, api, multi-agent, langchain, llm, openai, anthropic, debugging",
+    keywords="debugger, api, multi-agent, crewai, llm, openai, anthropic, debugging",
     python_requires=">=3.8",
     install_requires=[
     "crewai>=0.28.0",
     "pydantic>=2.0.0",
     "python-dotenv>=1.0.0",
     "click>=8.0.0",
-    "langchain>=0.0.267",
     "openai>=1.0.0",
     "anthropic>=0.8.0",
     "colorlog>=6.7.0",
@@ -55,14 +54,6 @@ setup(
     "pyyaml>=6.0",
     "rich>=13.4.2",
     "requests>=2.25.0",
-    "langchain-openai>=0.1.7",
-    "langchain-anthropic>=0.3.17",
-    "langchain-google-vertexai>=0.0.6",
-    "langchain-google-genai>=0.0.6",
-    "google-generativeai==0.8.5",               # pinned
-    "google-ai-generativelanguage==0.6.15",     # pinned
-    "langchain-mistralai>=0.1.4",
-    "langchain-cohere>=0.1.4",
 ],
     entry_points={
         "console_scripts": [
