@@ -6,7 +6,7 @@ A powerful Python package that uses multiple AI agents to debug API failures by 
 
 Watch the multiagent-debugger in action:
 
-https://github.com/VishApp/multiagent-debugger/blob/dc708955486fdcf37ded2263652edff41d37654e/docs/assets/VN20250711_020009.mp4
+[![Multi-Agent Debugger Demo](https://img.youtube.com/vi/9VTe12iVQ-A/0.jpg)](https://youtu.be/9VTe12iVQ-A?feature=shared)
 
 ## Features
 
@@ -65,7 +65,7 @@ multiagent-debugger debug "Why did my /api/users endpoint fail yesterday?"
 
 The Multi-Agent Debugger uses a sophisticated architecture that combines multiple specialized AI agents working together to analyze and debug API failures. Here's how the components interact:
 
-https://github.com/VishApp/multiagent-debugger/blob/dc708955486fdcf37ded2263652edff41d37654e/docs/assets/architecture.png
+![Multi-Agent Debugger Architecture](https://github.com/VishApp/multiagent-debugger/blob/main/docs/assets/architecture.png)
 
 ### Key Components
 
