@@ -236,12 +236,17 @@ def set_crewai_env_vars(provider: str, api_key: str = None):
     
     if api_key:
         # Set CrewAI memory environment variable based on provider
+        # Note: For non-OpenAI providers, we typically disable memory to avoid issues
         if provider.lower() == "openai":
             os.environ["CHROMA_OPENAI_API_KEY"] = api_key
         elif provider.lower() == "anthropic":
+            # For Anthropic, we'll set the env var but typically disable memory in crew config
             os.environ["CHROMA_ANTHROPIC_API_KEY"] = api_key
         elif provider.lower() == "google":
             os.environ["CHROMA_GOOGLE_API_KEY"] = api_key
+        
+        # Note: CrewAI may still require OpenAI for some internal operations
+        # We handle this by disabling memory for non-OpenAI providers
 
 def create_langchain_llm(provider: str, model: str, temperature: float, api_key: str = None, api_base: str = None):
     """Create the appropriate LangChain LLM based on provider.

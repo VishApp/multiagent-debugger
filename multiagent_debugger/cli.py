@@ -1,12 +1,75 @@
 import os
 import sys
+import glob
 import click
-from typing import Optional
+from typing import Optional, List
 
 from multiagent_debugger.config import load_config
 from multiagent_debugger.crew import DebuggerCrew
 from multiagent_debugger.utils import llm_config_manager
 from multiagent_debugger.utils.constants import ENV_VARS, DEFAULT_API_BASES
+
+def expand_log_paths(path: str) -> List[str]:
+    """Expand a log path to a list of actual log files.
+    
+    Args:
+        path: Path that could be a file, directory, or wildcard pattern
+        
+    Returns:
+        List of resolved log file paths
+    """
+    expanded_paths = []
+    
+    # Handle wildcard patterns
+    if '*' in path or '?' in path:
+        try:
+            matched_paths = glob.glob(path, recursive=True)
+            for matched_path in matched_paths:
+                if os.path.isfile(matched_path) and is_log_file(matched_path):
+                    expanded_paths.append(matched_path)
+        except Exception:
+            pass
+    else:
+        # Handle single file or directory
+        if os.path.isfile(path):
+            # It's a file, check if it looks like a log file
+            if is_log_file(path):
+                expanded_paths.append(path)
+        elif os.path.isdir(path):
+            # It's a directory, find all log files recursively
+            for root, dirs, files in os.walk(path):
+                for file in files:
+                    if is_log_file(file):
+                        full_path = os.path.join(root, file)
+                        expanded_paths.append(full_path)
+        else:
+            # Path doesn't exist yet, but might be valid later
+            # Check if it has a log-like extension
+            if is_log_file(path):
+                expanded_paths.append(path)
+    
+    return expanded_paths
+
+def is_log_file(filename: str) -> bool:
+    """Check if a filename looks like a log file.
+    
+    Args:
+        filename: The filename to check
+        
+    Returns:
+        True if it appears to be a log file
+    """
+    log_extensions = {'.log', '.txt', '.out', '.err', '.access', '.error'}
+    log_patterns = ['log', 'access', 'error', 'debug', 'trace']
+    
+    # Check file extension
+    _, ext = os.path.splitext(filename.lower())
+    if ext in log_extensions:
+        return True
+    
+    # Check if filename contains log-related keywords
+    filename_lower = filename.lower()
+    return any(pattern in filename_lower for pattern in log_patterns)
 
 @click.group()
 def cli():
@@ -100,13 +163,19 @@ def setup(output: Optional[str] = None):
         click.echo(f"\nRequired environment variables for {provider}:")
         for var in provider_vars:
             current_value = os.environ.get(var, "Not set")
-            click.echo(f"  {var}: {current_value}")
+            # Mask API keys for security
+            if "API_KEY" in var and current_value != "Not set":
+                masked_value = f"{current_value[:8]}...{current_value[-4:]}" if len(current_value) > 12 else "***"
+                click.echo(f"  {var}: {masked_value}")
+            else:
+                click.echo(f"  {var}: {current_value}")
     
     # Get API key (optional, can use environment variable)
     api_key = click.prompt(
         f"Enter {provider.capitalize()} API key (or press Enter to use environment variable)",
         default="",
-        show_default=False
+        show_default=False,
+        hide_input=True  # Hide the input so it's not displayed in the console
     )
     
     # If user provided an API key, export it in the current process and print export command
@@ -116,7 +185,9 @@ def setup(output: Optional[str] = None):
                 os.environ[var] = api_key
                 click.echo(f"\nExported {var} for this session.")
                 click.echo(f"To use this API key in your shell, run:")
-                click.echo(f"  export {var}={api_key}")
+                # Mask the API key in the export command for security
+                masked_key = f"{api_key[:8]}...{api_key[-4:]}" if len(api_key) > 12 else "***"
+                click.echo(f"  export {var}={masked_key}")
     
     # Get API base (optional)
     default_api_base = DEFAULT_API_BASES.get(provider.lower())
@@ -126,18 +197,34 @@ def setup(output: Optional[str] = None):
         show_default=False
     )
     
-    # Get log paths
+    # Get log paths (files or directories)
     log_paths = []
-    click.echo("\nEnter log file paths (press Enter when done):")
+    click.echo("\nEnter log file paths or log directories (press Enter when done):")
+    click.echo("You can specify:")
+    click.echo("  - Individual log files: /path/to/file.log")
+    click.echo("  - Log directories: /path/to/logs/ (will find all .log files)")
+    click.echo("  - Wildcard patterns: /path/to/logs/*.log")
+    
     while True:
         log_path = click.prompt(
-            f"Log file {len(log_paths) + 1}",
+            f"Log file/directory {len(log_paths) + 1}",
             default="",
             show_default=False
         )
         if not log_path:
             break
-        log_paths.append(log_path)
+        
+        # Expand the path to handle wildcards and resolve to actual files
+        expanded_paths = expand_log_paths(log_path)
+        if expanded_paths:
+            log_paths.extend(expanded_paths)
+            click.echo(f"  Added {len(expanded_paths)} log file(s):")
+            for path in expanded_paths:
+                click.echo(f"    - {path}")
+        else:
+            click.echo(f"  Warning: No log files found at {log_path}")
+            # Still add the path in case it's a valid path that will exist later
+            log_paths.append(log_path)
         
     # Get code path
     code_path = click.prompt(

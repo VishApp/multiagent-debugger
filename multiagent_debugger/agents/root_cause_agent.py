@@ -52,7 +52,7 @@ class RootCauseAgent:
                 tools=tools or [],
                 llm=llm,  # Pass the LangChain LLM object
                 max_iter=1,  # Reduced from 3 to 1 for efficiency
-                memory=True,  # Enable memory for better context retention
+                memory=False,  # Disable individual agent memory, use crew-level memory instead
             )
             return agent
         except Exception as e:
@@ -106,7 +106,7 @@ class RootCauseAgent:
                 temperature=temperature,
                 openai_api_key=api_key,
                 openai_api_base=api_base
-            )
+        )
     
     def _get_llm_config(self) -> Dict[str, Any]:
         """Get the LLM configuration based on the provider."""
@@ -139,7 +139,7 @@ class RootCauseAgent:
         # Default config for OpenAI
         if provider == "openai":
             config = {
-                "config_list": [{"model": model, "api_key": api_key}],
+                    "config_list": [{"model": model, "api_key": api_key}],
                 "temperature": temperature,
             }
             if api_base:

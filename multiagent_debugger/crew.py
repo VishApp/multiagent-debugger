@@ -95,6 +95,29 @@ class DebuggerCrew:
         Returns:
             Crew: The configured CrewAI crew
         """
+        # Get provider info for memory configuration
+        if hasattr(self.config, 'llm'):
+            provider = self.config.llm.provider.lower()
+        else:
+            provider = self.config.get("llm", {}).get("provider", "openai").lower()
+        
+        # Configure memory based on provider
+        memory_config = {}
+        if provider == "openai":
+            # Only enable memory for OpenAI as CrewAI's memory system works best with OpenAI
+            memory_config = {
+                "memory": True,
+                "cache": True,
+                "memory_key": "multiagent_debugger_v1"
+            }
+        else:
+            # For non-OpenAI providers, disable memory to avoid CrewAI memory issues
+            print(f"DEBUG: Disabling memory for provider {provider} due to CrewAI limitations")
+            memory_config = {
+                "memory": False,
+                "cache": True
+            }
+        
         # Create crew with retry configuration
         crew = Crew(
             agents=[
@@ -108,8 +131,7 @@ class DebuggerCrew:
             process=Process.sequential,  # Use sequential process
             max_rpm=10,  # Maximum requests per minute
             max_iter=1,  # Reduced to 1 to prevent infinite loops
-            memory=True, # Enable memory for better context retention
-            cache=True,   # Enable cache to avoid repeated LLM calls
+            **memory_config
         )
         
         return crew
@@ -139,13 +161,14 @@ class DebuggerCrew:
             print(traceback.format_exc())
             raise
         
-        # Handle the result correctly
-        if hasattr(result, 'raw_output'):
-            return result.raw_output
-        elif isinstance(result, str):
-            return result
-        else:
-            return str(result)
+            # Determine final result string
+        final_result = (
+            result.raw_output if hasattr(result, 'raw_output')
+            else result if isinstance(result, str)
+            else str(result)
+        )
+
+        return final_result
     
     def _create_tasks(self, question: str) -> List[Task]:
         """Create tasks for the debugging process.

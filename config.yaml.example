@@ -1,10 +1,12 @@
 # Example configuration file for Multiagent Debugger
 # Optimized for efficiency and performance
 
-# Paths to log files
+# Paths to log files (supports files, directories, and wildcards)
 log_paths:
-  - /var/log/myapp/app.log
-  - /var/log/nginx/access.log
+  - /var/log/myapp/app.log                    # Individual log file
+  - /var/log/nginx/                           # All log files in directory
+  - /var/log/*.log                           # All .log files in directory
+  - /path/to/logs/                           # Recursive search for log files
 
 # Path to codebase
 code_path: /home/user/projects/order-service
@@ -32,7 +34,7 @@ llm:
     # top_p: 0.9  # Slightly more focused generation
 
 # Enable verbose logging (optional, defaults to false)
-verbose: false
+verbose: false 
 
 # Performance optimizations
 performance:
