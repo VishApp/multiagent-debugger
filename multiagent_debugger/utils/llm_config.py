@@ -576,10 +576,11 @@ def create_langchain_llm(provider: str, model: str, temperature: float, api_key:
             anthropic_api_key=api_key
         )
     elif provider in ["google", "gemini"]:
-        from langchain_google_vertexai import ChatVertexAI
-        return ChatVertexAI(
-            model_name=model,
-            temperature=temperature
+        from langchain_google_genai import ChatGoogleGenerativeAI
+        return ChatGoogleGenerativeAI(
+            model=model,
+            temperature=temperature,
+            google_api_key=api_key
         )
     elif provider == "mistral":
         from langchain_mistralai import ChatMistralAI
