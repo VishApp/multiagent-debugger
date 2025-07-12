@@ -28,7 +28,7 @@ Watch the multiagent-debugger in action:
   - Ollama (Local models)
   - Azure OpenAI
   - AWS Bedrock
-  - And 50+ more providers
+  - And more providers
 
 - **Advanced Features**
   - Dynamic Model Discovery
@@ -74,7 +74,7 @@ The Multi-Agent Debugger uses a sophisticated architecture that combines multipl
    - Handles command processing and output formatting
 
 2. **Configuration Layer**
-   - LLM Settings supporting 59+ providers
+   - LLM Settings supporting 10+ providers
    - Config Manager for handling paths and settings
 
 3. **Debugger Crew**
