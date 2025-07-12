@@ -40,7 +40,7 @@ Watch the multiagent-debugger in action:
 ## Installation
 
 ```bash
-# From PyPI (coming soon)
+# From PyPI
 pip install multiagent-debugger
 
 # From source
