@@ -22,10 +22,10 @@ Watch the multiagent-debugger in action:
   - Natural Language Processing: Convert user questions into structured queries
 
 - **Multi-Provider LLM Support**
-  - OpenAI (GPT-4, GPT-3.5-turbo)
-  - Anthropic (Claude-3 models)
-  - Google (Gemini models)
-  - Ollama (Local models)
+  - OpenAI
+  - Anthropic
+  - Google
+  - Ollama
   - Azure OpenAI
   - AWS Bedrock
   - And more providers
