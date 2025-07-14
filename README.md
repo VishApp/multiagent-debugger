@@ -36,10 +36,10 @@ The Multi-Agent Debugger uses a sophisticated architecture that combines multipl
 - **Natural Language Processing**: Convert user questions into structured queries
 
 ### 🌐 Multi-Provider LLM Support
-- **OpenAI** (GPT-4, GPT-3.5-turbo)
-- **Anthropic** (Claude-3 models)
-- **Google** (Gemini models)
-- **Ollama** (Local models)
+- **OpenAI**
+- **Anthropic**
+- **Google**
+- **Ollama**
 - **Azure OpenAI**
 - **AWS Bedrock**
 - **And 50+ more providers**
