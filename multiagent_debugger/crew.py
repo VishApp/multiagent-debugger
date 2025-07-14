@@ -380,17 +380,37 @@ The analyzer should extract ALL file paths mentioned in your error/question.
             description="""
         SYSTEM INSTRUCTION: You are a multi-agent system designed to debug application issues.
 
-        TASK: Extract the latest relevant error from logs, including timestamp, severity, stack trace, and code path.
+        TASK: Analyze logs based on the analysis type from Question Analyzer:
+        - For "pattern_analysis": Find common error patterns and frequencies
+        - For "recent_search": Extract the latest relevant error
+        - For "comprehensive_search": Show all errors with context
 
-        TOOL USAGE STRATEGY (MAX 3 TOOLS):
-        1. Use grep_logs with search terms from question analysis
-        2. Use filter_logs for additional context if needed
-        3. Use extract_stack_traces if exceptions are found
+        TOOL USAGE STRATEGY (BASED ON ANALYSIS TYPE):
+        
+        PATTERN ANALYSIS (for "common errors", "frequent errors"):
+        1. Use analyze_error_patterns to find common patterns
+        2. Use filter_logs for detailed breakdown if needed
+        
+        RECENT SEARCH (for "latest error", "last error"):
+        1. Use grep_logs with search terms (sorted by time)
+        2. Use filter_logs for additional context
+        3. Use extract_stack_traces if exceptions found
+        
+        COMPREHENSIVE SEARCH (for "all errors", "show errors"):
+        1. Use grep_logs for broad error search
+        2. Use filter_logs for error level filtering
+        3. Use extract_stack_traces for detailed analysis
 
         OUTPUT FORMAT (STRUCTURED JSON):
         {
           "log_investigation": {
+            "analysis_type": "[pattern_analysis|recent_search|comprehensive_search]",
             "primary_evidence": "[Key findings from log search]",
+            "error_patterns": {
+              "total_patterns": "[number]",
+              "most_common": "[pattern with highest frequency]",
+              "frequency_distribution": "[summary of pattern frequencies]"
+            },
             "error_timeline": {
               "first_occurrence": "[timestamp]",
               "pattern": "[frequency - single/recurring/periodic]",

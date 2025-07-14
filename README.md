@@ -105,6 +105,10 @@ llm:
   # api_key: optional, can use environment variable
 ```
 
+### Custom Providers
+
+The system supports various LLM providers including OpenRouter, Anthropic, Google, and others. See [Custom Providers Guide](docs/CUSTOM_PROVIDERS.md) for detailed configuration instructions.
+
 ### Environment Variables
 
 Set the appropriate environment variable for your chosen provider:

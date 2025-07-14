@@ -358,18 +358,46 @@ def create_crewai_llm(provider: str, model: str, temperature: float, api_key: st
             os.environ["HF_TOKEN"] = api_key
         elif provider.lower() == "sambanova":
             os.environ["SAMBANOVA_API_KEY"] = api_key
+        elif provider.lower() == "openrouter":
+            os.environ["OPENROUTER_API_KEY"] = api_key
+            if api_base:
+                os.environ["OPENROUTER_API_BASE"] = api_base
         elif provider.lower() == "ollama":
             # Ollama doesn't need API key, but we can set base URL
             if api_base:
                 os.environ["OLLAMA_BASE_URL"] = api_base
+        elif provider.lower() == "custom":
+            # For custom providers, we don't set specific environment variables
+            # as they may have their own naming conventions
+            pass
     
     try:
-        # Create the LLM object with the appropriate model identifier
-        llm = LLM(
-            model=model,
-            api_key=api_key,
-            temperature=temperature
-        )
+        # Handle OpenRouter specially - it uses OpenAI API format but with custom base URL
+        if provider.lower() == "openrouter":
+            # For OpenRouter, we need to use the OpenAI provider with custom base URL
+            llm = LLM(
+                model=model,
+                api_key=api_key,
+                temperature=temperature,
+                base_url=api_base or "https://openrouter.ai/api/v1"
+            )
+        elif provider.lower() == "custom":
+            # For custom providers, we need to specify the base URL
+            if not api_base:
+                raise ValueError("Custom provider requires api_base to be specified")
+            llm = LLM(
+                model=model,
+                api_key=api_key,
+                temperature=temperature,
+                base_url=api_base
+            )
+        else:
+            # Create the LLM object with the appropriate model identifier
+            llm = LLM(
+                model=model,
+                api_key=api_key,
+                temperature=temperature
+            )
         
         return llm
         

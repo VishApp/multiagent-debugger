@@ -91,6 +91,7 @@ class QuestionAnalyzerAgent:
             "metaphor": "[Creative metaphor for this error type]"
           },
           "log_analysis_tasks": {
+            "analysis_type": "[pattern_analysis|recent_search|comprehensive_search]",
             "search_terms": ["primary_term", "secondary_term"],
             "time_window": "[if specified]",
             "focus_areas": ["error_patterns", "stack_traces"],
@@ -139,6 +140,19 @@ class QuestionAnalyzerAgent:
         - If multiple files are mentioned, list all of them
         - Pay special attention to stack traces in log entries
         - Look for file paths in both simple error messages and complex JSON log structures
+        
+        QUERY TYPE DETECTION:
+        - When users ask for "common errors", "frequent errors", "error patterns", "most common errors":
+          * Set analysis_type to "pattern_analysis"
+          * Set focus_areas to ["error_patterns"]
+          * Use search_terms like ["error", "exception", "failed"]
+          * This triggers the analyze_error_patterns tool instead of grep_logs
+        - When users ask for "latest error", "last error", "recent error":
+          * Set analysis_type to "recent_search"
+          * Use specific error terms from the question
+        - When users ask for "all errors", "show errors":
+          * Set analysis_type to "comprehensive_search"
+          * Use broad search terms
         
         LANGUAGE-AGNOSTIC ERROR PATTERNS:
         - API Errors: HTTP status codes, endpoint failures, request/response issues

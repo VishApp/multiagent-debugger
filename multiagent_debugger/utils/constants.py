@@ -108,6 +108,27 @@ ENV_VARS = {
             "key_name": "SAMBANOVA_API_KEY",
         }
     ],
+    "openrouter": [
+        {
+            "prompt": "Enter your OpenRouter API key (press Enter to skip)",
+            "key_name": "OPENROUTER_API_KEY",
+        },
+        {
+            "prompt": "Enter your OpenRouter API base URL (press Enter to use default)",
+            "key_name": "OPENROUTER_API_BASE",
+            "default": "https://openrouter.ai/api/v1",
+        }
+    ],
+    "custom": [
+        {
+            "prompt": "Enter your custom API key (press Enter to skip)",
+            "key_name": "CUSTOM_API_KEY",
+        },
+        {
+            "prompt": "Enter your custom API base URL (required for custom providers)",
+            "key_name": "CUSTOM_API_BASE",
+        }
+    ],
 }
 
 # List of supported providers
@@ -124,6 +145,8 @@ PROVIDERS = [
     "azure",
     "cerebras",
     "sambanova",
+    "openrouter",
+    "custom",
 ]
 
 # Model lists for each provider
@@ -320,6 +343,42 @@ MODELS = {
         "sambanova/Meta-Llama-3.2-3B-Instruct",
         "sambanova/Meta-Llama-3.2-1B-Instruct",
     ],
+    "openrouter": [
+        "gpt-4o",
+        "gpt-4o-mini",
+        "gpt-4-turbo",
+        "gpt-4",
+        "gpt-3.5-turbo",
+        "claude-3-5-sonnet",
+        "claude-3-opus",
+        "claude-3-sonnet",
+        "claude-3-haiku",
+        "gemini/gemini-1.5-pro",
+        "gemini/gemini-1.5-flash",
+        "meta-llama/llama-3.1-8b-instruct",
+        "meta-llama/llama-3.1-70b-instruct",
+        "meta-llama/llama-3.1-405b-instruct",
+        "mistralai/mistral-7b-instruct",
+        "mistralai/mixtral-8x7b-instruct",
+        "anthropic/claude-3.5-sonnet",
+        "anthropic/claude-3-opus",
+        "anthropic/claude-3-sonnet",
+        "anthropic/claude-3-haiku",
+    ],
+    "custom": [
+        # Custom providers can use any model name
+        # This is a placeholder - actual models depend on the custom provider
+        "gpt-4o",
+        "gpt-4o-mini",
+        "gpt-4",
+        "gpt-3.5-turbo",
+        "claude-3-5-sonnet",
+        "claude-3-opus",
+        "claude-3-sonnet",
+        "claude-3-haiku",
+        "gemini/gemini-1.5-pro",
+        "gemini/gemini-1.5-flash",
+    ],
 }
 
 # Default API base URLs (for backward compatibility)
@@ -330,7 +389,8 @@ DEFAULT_API_BASES = {
     "gemini": None,  # Use default for Google/Gemini
     "deepseek": "https://api.deepseek.com",
     "ollama": "http://localhost:11434",
-    "azure": None  # Must be provided by user
+    "azure": None,  # Must be provided by user
+    "custom": None  # Must be provided by user for custom providers
 }
 
 # Default LLM model

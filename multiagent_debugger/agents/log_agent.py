@@ -73,20 +73,34 @@ class LogAgent:
         
         Use the search strategy from Question Analyzer to target your investigation.
         
-        TOOL USAGE STRATEGY:
+        TOOL USAGE STRATEGY (BASED ON ANALYSIS TYPE):
         
+        PATTERN ANALYSIS (for "common errors", "frequent errors"):
+        STEP 1: ERROR PATTERN ANALYSIS
+        ✅ analyze_error_patterns([time_window_hours])
+        Example: analyze_error_patterns(24)
+        
+        STEP 2: DETAILED PATTERN BREAKDOWN (if patterns found)
+        ✅ filter_logs("ERROR", [time_hours], "")
+        Example: filter_logs("ERROR", 24, "")
+        
+        RECENT SEARCH (for "latest error", "last error"):
         STEP 1: PRIMARY EVIDENCE SEARCH
-        Use grep_logs with the primary search term from Question Analyzer
-        ✅ grep_logs("[primary_search_term]")
-        Example: grep_logs("Invalid token")
+        ✅ grep_logs("[primary_search_term]", 2, false, false, [time_hours], true)
+        Example: grep_logs("Invalid token", 2, false, false, 24, true)
         
         STEP 2: DETAILED ANALYSIS (Only if Step 1 found evidence)
-        If grep found results, get more context:
         ✅ filter_logs("[error_level]", [time_hours], "")
         Example: filter_logs("ERROR", 4, "")
         
-        STEP 3: STACK TRACE EXTRACTION (Only if error involves exceptions)
-        If this is a script/application error:
+        COMPREHENSIVE SEARCH (for "all errors", "show errors"):
+        STEP 1: BROAD ERROR SEARCH
+        ✅ grep_logs("error", 2, false, false, [time_hours], true)
+        
+        STEP 2: ERROR LEVEL FILTERING
+        ✅ filter_logs("ERROR", [time_hours], "")
+        
+        STEP 3: STACK TRACE EXTRACTION (if exceptions found)
         ✅ extract_stack_traces("[exception_type]")
         Example: extract_stack_traces("RuntimeError")
         
@@ -99,7 +113,13 @@ class LogAgent:
         
         {
           "log_investigation": {
-            "primary_evidence": "[Key findings from grep_logs search]",
+            "analysis_type": "[pattern_analysis|recent_search|comprehensive_search]",
+            "primary_evidence": "[Key findings from tool search]",
+            "error_patterns": {
+              "total_patterns": "[number]",
+              "most_common": "[pattern with highest frequency]",
+              "frequency_distribution": "[summary of pattern frequencies]"
+            },
             "error_timeline": {
               "first_occurrence": "[timestamp]",
               "pattern": "[frequency - single/recurring/periodic]",
