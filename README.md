@@ -8,36 +8,54 @@ Watch the multiagent-debugger in action:
 
 [![Multi-Agent Debugger Demo](https://img.youtube.com/vi/9VTe12iVQ-A/0.jpg)](https://youtu.be/9VTe12iVQ-A?feature=shared)
 
-## Features
+## 🏗️ Architecture
 
-- **Multi-Agent Architecture**
-  - Question Analysis Agent: Extracts key entities from natural language questions
-  - Log Analysis Agent: Searches and filters logs for relevant information
-  - Code Analysis Agent: Finds API handlers, dependencies, and error handling code
-  - Root Cause Analysis Agent: Synthesizes findings to determine failure causes
+The Multi-Agent Debugger uses a sophisticated architecture that combines multiple specialized AI agents working together to analyze and debug API failures.
 
-- **Comprehensive Analysis Tools**
-  - Log Analysis: Search, filter, and extract stack traces from logs
-  - Code Analysis: Find API handlers, dependencies, and error handling patterns
-  - Natural Language Processing: Convert user questions into structured queries
+### Core Agent Flow
 
-- **Multi-Provider LLM Support**
-  - OpenAI (GPT-4, GPT-3.5-turbo)
-  - Anthropic (Claude-3 models)
-  - Google (Gemini models)
-  - Ollama (Local models)
-  - Azure OpenAI
-  - AWS Bedrock
-  - And 50+ more providers
+![Core Agent Flow](docs/assets/architecture_simple.png)
 
-- **Advanced Features**
-  - Dynamic Model Discovery
-  - Automatic Provider Configuration
-  - Flexible Log Path Configuration
-  - Customizable Code Path Analysis
-  - Verbose Debug Mode
+### Detailed Architecture
 
-## Installation
+![Detailed Architecture](docs/assets/architecture.png)
+
+## ✨ Features
+
+### 🤖 Multi-Agent Architecture
+- **Question Analyzer Agent**: Extracts key entities from natural language questions and classifies error types
+- **Log Analyzer Agent**: Searches and filters logs for relevant information, extracts stack traces
+- **Code Path Analyzer Agent**: Validates and analyzes code paths found in logs
+- **Code Analyzer Agent**: Finds API handlers, dependencies, and error handling code
+- **Root Cause Agent**: Synthesizes findings to determine failure causes and generates visual flowcharts
+
+### 🔧 Comprehensive Analysis Tools
+- **Log Analysis**: Enhanced grep, filtering, stack trace extraction, and error pattern analysis
+- **Code Analysis**: API handler discovery, dependency mapping, error handler identification, multi-language support
+- **Flowchart Generation**: Error flow, system architecture, decision trees, sequence diagrams, and debugging storyboards
+- **Natural Language Processing**: Convert user questions into structured queries
+
+### 🌐 Multi-Provider LLM Support
+- **OpenAI** (GPT-4, GPT-3.5-turbo)
+- **Anthropic** (Claude-3 models)
+- **Google** (Gemini models)
+- **Ollama** (Local models)
+- **Azure OpenAI**
+- **AWS Bedrock**
+- **And 50+ more providers**
+
+### 🎨 Creative Features
+- **Storytelling**: Detective-style narratives with metaphors and analogies
+- **Visual Flowcharts**: Mermaid diagrams for error propagation and system architecture
+- **Copyable Output**: Clean, copyable flowchart code for easy sharing
+- **Multi-language Support**: Python, JavaScript, Java, Go, Rust, and more
+
+### 📊 Output Formats
+- **Structured JSON**: Programmatic access to analysis results
+- **Text Documents**: Human-readable reports saved to local files
+- **Visual Flowcharts**: Mermaid diagrams for documentation and sharing
+
+## 🚀 Installation
 
 ```bash
 # From PyPI (coming soon)
@@ -49,54 +67,24 @@ cd multiagent-debugger
 pip install -e .
 ```
 
-## Quick Start
+## ⚡ Quick Start
 
-1. Set up your configuration:
+1. **Set up your configuration:**
 ```bash
 multiagent-debugger setup
 ```
 
-2. Debug an API failure:
+2. **Debug an API failure:**
 ```bash
 multiagent-debugger debug "Why did my /api/users endpoint fail yesterday?"
 ```
 
-## Architecture
+3. **View generated files:**
+- Analysis results in JSON format
+- Text documents in current directory
+- Visual flowcharts for documentation
 
-The Multi-Agent Debugger uses a sophisticated architecture that combines multiple specialized AI agents working together to analyze and debug API failures. Here's how the components interact:
-
-![Multi-Agent Debugger Architecture](https://github.com/VishApp/multiagent-debugger/blob/main/docs/assets/architecture.png)
-
-### Key Components
-
-1. **User Interface Layer**
-   - CLI Interface for user interaction
-   - Handles command processing and output formatting
-
-2. **Configuration Layer**
-   - LLM Settings supporting 59+ providers
-   - Config Manager for handling paths and settings
-
-3. **Debugger Crew**
-   - Crew Orchestrator managing agent interactions
-   - Coordinates the analysis workflow
-
-4. **Specialized Agents**
-   - Question Analyzer: Processes natural language queries
-   - Log Analyzer: Examines log files
-   - Code Analyzer: Reviews codebase
-   - Root Cause Synthesizer: Combines findings
-
-5. **Tools Layer**
-   - Log Tools for log file analysis
-   - Code Tools for codebase examination
-
-6. **External Resources**
-   - Log Files
-   - Codebase
-   - LLM Providers (OpenAI, Anthropic, etc.)
-
-## Configuration
+## ⚙️ Configuration
 
 Create a `config.yaml` file (or use the setup command):
 
@@ -121,14 +109,45 @@ llm:
 
 Set the appropriate environment variable for your chosen provider:
 
-- OpenAI: `OPENAI_API_KEY`
-- Anthropic: `ANTHROPIC_API_KEY`
-- Google: `GOOGLE_API_KEY`
-- Azure: `AZURE_OPENAI_API_KEY`, `AZURE_OPENAI_ENDPOINT`
-- AWS: `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, `AWS_REGION`
+- **OpenAI**: `OPENAI_API_KEY`
+- **Anthropic**: `ANTHROPIC_API_KEY`
+- **Google**: `GOOGLE_API_KEY`
+- **Azure**: `AZURE_OPENAI_API_KEY`, `AZURE_OPENAI_ENDPOINT`
+- **AWS**: `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, `AWS_REGION`
 - See documentation for other providers
 
-## Advanced Usage
+## 🔍 How It Works
+
+### 1. Question Analysis
+- Extracts key information like API routes, timestamps, and error types
+- Classifies the error type (API, Database, File, Network, etc.)
+- Structures the query for other agents
+
+### 2. Log Analysis
+- Searches through specified log files using enhanced grep
+- Filters relevant log entries by time and pattern
+- Extracts stack traces and error patterns
+- Validates code paths found in logs
+
+### 3. Code Analysis
+- Locates relevant API handlers and endpoints
+- Identifies dependencies and error handlers
+- Maps the code structure and relationships
+- Supports multiple programming languages
+
+### 4. Root Cause Analysis
+- Synthesizes information from all previous agents
+- Determines the most likely cause with confidence levels
+- Generates creative narratives and metaphors
+- Creates visual flowcharts for documentation
+
+### 5. Output Generation
+- Structured JSON for programmatic access
+- Human-readable text documents
+- Visual flowcharts in Mermaid format
+- Copyable flowchart code for easy sharing
+
+## 🛠️ Advanced Usage
 
 ### List Available Providers
 ```bash
@@ -150,28 +169,7 @@ multiagent-debugger debug "Question?" --config path/to/config.yaml
 multiagent-debugger debug "Question?" --verbose
 ```
 
-## How It Works
-
-1. **Question Analysis**
-   - Extracts key information like API routes, timestamps, and error types
-   - Structures the query for other agents
-
-2. **Log Analysis**
-   - Searches through specified log files
-   - Filters relevant log entries
-   - Extracts stack traces and error patterns
-
-3. **Code Analysis**
-   - Locates relevant API handlers
-   - Identifies dependencies and error handlers
-   - Maps the code structure
-
-4. **Root Cause Analysis**
-   - Synthesizes information from other agents
-   - Determines the most likely cause
-   - Provides actionable insights
-
-## Development
+## 🧪 Development
 
 ```bash
 # Create virtual environment
@@ -187,23 +185,32 @@ python package_builder.py test
 python package_builder.py dist
 ```
 
-## Requirements
+## 📋 Requirements
 
-- Python 3.8+
-- Dependencies:
+- **Python**: 3.8+
+- **Dependencies**:
   - crewai>=0.28.0
   - pydantic>=2.0.0
   - And others (see requirements.txt)
 
-## License
+## 📄 License
 
 MIT License - see [LICENSE](LICENSE) for details.
 
-## Contributing
+## 🤝 Contributing
 
 Contributions are welcome! Please feel free to submit a Pull Request.
 
-## Support
+## 🆘 Support
 
-- GitHub Issues: [Report a bug](https://github.com/VishApp/multiagent-debugger/issues)
-- Documentation: [Read more](https://github.com/VishApp/multiagent-debugger#readme)
+- **GitHub Issues**: [Report a bug](https://github.com/VishApp/multiagent-debugger/issues)
+- **Documentation**: [Read more](https://github.com/VishApp/multiagent-debugger#readme)
+
+## 🎯 Use Cases
+
+- **API Debugging**: Quickly identify why API endpoints are failing
+- **Production Issues**: Analyze logs and code to find root causes
+- **Error Investigation**: Understand complex error chains and dependencies
+- **Documentation**: Generate visual flowcharts for error propagation
+- **Team Collaboration**: Share analysis results in multiple formats
+- **Multi-language Projects**: Support for Python, JavaScript, Java, Go, Rust, and more

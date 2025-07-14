@@ -1,0 +1,49 @@
+graph TB
+    subgraph "User Interface"
+        A[CLI Command] --> B[Config File]
+    end
+    
+    subgraph "AI Agents"
+        C[Question Analyzer]
+        D[Log Analyzer]
+        E[Code Analyzer]
+        F[Root Cause Agent]
+    end
+    
+    subgraph "Data Sources"
+        G[Log Files]
+        H[Source Code]
+        I[AI Models]
+    end
+    
+    subgraph "Results"
+        J[JSON Data]
+        K[Flowcharts]
+    end
+    
+    A --> C
+    C --> D
+    D --> E
+    E --> F
+    
+    D --> G
+    E --> H
+    C --> I
+    D --> I
+    E --> I
+    F --> I
+    
+    F --> J
+    F --> K
+    
+    style A fill:#e1f5fe
+    style B fill:#e1f5fe
+    style C fill:#e8f5e8
+    style D fill:#e8f5e8
+    style E fill:#e8f5e8
+    style F fill:#e8f5e8
+    style G fill:#f3e5f5
+    style H fill:#f3e5f5
+    style I fill:#f3e5f5
+    style J fill:#e0f2f1
+    style K fill:#e0f2f1 
