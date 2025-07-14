@@ -58,7 +58,7 @@ The Multi-Agent Debugger uses a sophisticated architecture that combines multipl
 ## 🚀 Installation
 
 ```bash
-# From PyPI (coming soon)
+# From PyPI
 pip install multiagent-debugger
 
 # From source
