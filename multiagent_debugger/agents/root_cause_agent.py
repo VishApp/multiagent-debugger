@@ -27,16 +27,16 @@ def create_clean_error_flow_tool():
             Clean Mermaid code for the error flow chart
         """
         try:
-            # Create clean Mermaid diagram (no subgraphs, just the main error flow)
+            # Create a cleaner, more concise Mermaid diagram
             mermaid_code = f"""graph LR
-    A[🎭 Problem Discovery: {error_type.title()} error occurred] --> B[🔍 Investigation: {error_message}]
-    B --> C[💡 Solution Found: {components}]
-    C --> D[✅ Problem Resolved]
+    A[🚨 {error_type.title()} Error] --> B[🔍 {error_message}]
+    B --> C[💡 {components}]
+    C --> D[✅ Resolved]
     
-    style A fill:#ffebee
-    style B fill:#fff3e0
-    style C fill:#e8f5e8
-    style D fill:#e1f5fe"""
+    style A fill:#ffebee,stroke:#f44336,stroke-width:2px
+    style B fill:#fff3e0,stroke:#ff9800,stroke-width:2px
+    style C fill:#e8f5e8,stroke:#4caf50,stroke-width:2px
+    style D fill:#e3f2fd,stroke:#2196f3,stroke-width:2px"""
             
             return f"✅ Clean Error Flow Chart Generated:\n\n```mermaid\n{mermaid_code}\n```\n\n📋 Copy the code above and paste it into any Mermaid-compatible editor!"
             
@@ -44,6 +44,41 @@ def create_clean_error_flow_tool():
             return f"❌ Error generating clean flowchart: {str(e)}"
     
     return create_clean_error_flow
+
+def create_minimal_error_flow_tool():
+    """Create a tool for generating ultra-clean, minimal error flow charts."""
+    @tool("create_minimal_error_flow")
+    def create_minimal_error_flow(error_type: str, error_message: str, components: str, timeline: str, severity: str) -> str:
+        """Create an ultra-clean, minimal error flow chart in Mermaid format.
+        
+        Args:
+            error_type: Type of error (e.g., "authentication", "database", "file_access")
+            error_message: The specific error message
+            components: Systems/components involved
+            timeline: When the error occurred
+            severity: Error severity level
+            
+        Returns:
+            Minimal Mermaid code for the error flow chart
+        """
+        try:
+            # Create an ultra-clean, minimal Mermaid diagram
+            mermaid_code = f"""graph LR
+    A[Error: {error_type.title()}] --> B[Issue: {error_message}]
+    B --> C[Fix: {components}]
+    C --> D[✅ Done]
+    
+    style A fill:#ffebee
+    style B fill:#fff3e0
+    style C fill:#e8f5e8
+    style D fill:#e3f2fd"""
+            
+            return f"✅ Minimal Error Flow Chart Generated:\n\n```mermaid\n{mermaid_code}\n```\n\n📋 Copy the code above and paste it into any Mermaid-compatible editor!"
+            
+        except Exception as e:
+            return f"❌ Error generating minimal flowchart: {str(e)}"
+    
+    return create_minimal_error_flow
 
 class RootCauseAgent:
     """Agent that determines the root cause of API failures."""
@@ -72,16 +107,17 @@ class RootCauseAgent:
             Agent: The configured CrewAI agent
         """
         # Get LLM configuration parameters
-        provider, model, temperature, api_key, api_base = get_agent_llm_config(self.llm_config)
+        provider, model, temperature, api_key, api_base, additional_params = get_agent_llm_config(self.llm_config)
         verbose = get_verbose_flag(self.config)
         
         # Create LLM
-        llm = create_crewai_llm(provider, model, temperature, api_key, api_base)
+        llm = create_crewai_llm(provider, model, temperature, api_key, api_base, additional_params)
         
         # Add the clean error flow tool to the tools list
         if tools is None:
             tools = []
         tools.append(create_clean_error_flow_tool())
+        tools.append(create_minimal_error_flow_tool())
         
         try:
             agent = Agent(
@@ -116,11 +152,17 @@ class RootCauseAgent:
         
         STEP 3: 🎨 VISUAL STORYTELLING
         ✅ create_clean_error_flow("[error_type]", "[error_message]", "[components]", "[timeline]", "[severity]")
+        OR
+        ✅ create_minimal_error_flow("[error_type]", "[error_message]", "[components]", "[timeline]", "[severity]")
         
-        Create a clean, copyable error flow chart:
-        - error_type: From Question Analyzer classification
-        - error_message: Key error from Log Analyzer
-        - components: Systems identified by all agents
+        Choose the appropriate flowchart style:
+        - Use create_clean_error_flow for detailed, colorful flowcharts with borders
+        - Use create_minimal_error_flow for ultra-clean, simple flowcharts
+        
+        Parameters:
+        - error_type: From Question Analyzer classification (e.g., "authentication", "database")
+        - error_message: Key error from Log Analyzer (keep concise)
+        - components: Systems identified by all agents (keep concise)
         - timeline: From Log Analyzer timeline
         - severity: From Question Analyzer priority
         
@@ -182,7 +224,8 @@ class RootCauseAgent:
             "rollback_plan": ["how to rollback if needed with creative approach"]
           },
           "flowchart_data": {
-            "error_flow": "[clean mermaid code from create_clean_error_flow tool]"
+            "error_flow": "[clean mermaid code from create_clean_error_flow or create_minimal_error_flow tool]",
+            "flowchart_style": "[clean|minimal] - indicates which style was used"
           },
           "creative_elements": {
             "metaphor": "[Creative metaphor for the entire problem]",
@@ -203,7 +246,9 @@ class RootCauseAgent:
         - Be concise, clear, and developer-friendly
         - Always recommend actionable next steps
         - Explicitly note missing or uncertain data
-        - Generate mermaid diagrams for visual representation
+        - Generate clean, minimal mermaid diagrams for visual representation
+        - Keep flowchart text concise - avoid long descriptions in boxes
+        - Choose appropriate flowchart style based on complexity
         - NEVER use example file names like "base_tm_action.py", "dataProcessor.js", etc.
         - ONLY use information that actually comes from previous agents' findings
         - If previous agents found no real data, say "Insufficient data for root cause analysis"

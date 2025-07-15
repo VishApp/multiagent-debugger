@@ -168,11 +168,6 @@ multiagent-debugger list-models openai
 multiagent-debugger debug "Question?" --config path/to/config.yaml
 ```
 
-### Enable Verbose Output
-```bash
-multiagent-debugger debug "Question?" --verbose
-```
-
 ## 🧪 Development
 
 ```bash

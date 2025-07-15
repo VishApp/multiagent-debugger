@@ -1088,9 +1088,7 @@ def create_directory_language_analyzer_tool(code_path: str = None):
             String containing language detection results and relevant file recommendations
         """
         
-        try:
-            print(f"[DEBUG] Directory analysis: {error_category} | {component_hint}")
-            
+        try:            
             # COMPREHENSIVE LANGUAGE DETECTION
             language_patterns = {
                 'go': {
@@ -1348,9 +1346,7 @@ def create_error_pattern_analyzer_tool(code_path: str = None):
         cache_key = f"error_patterns_{error_type}_{language}_{code_path}"
         if cache_key in _code_analysis_cache:
             return f"[CACHED RESULT] {_code_analysis_cache[cache_key]}"
-        
-        print(f"[DEBUG] Analyzing error patterns for: {error_type} in {language}")
-        
+                
         if not code_path or not os.path.exists(code_path):
             result = "No valid code path provided."
             _code_analysis_cache[cache_key] = result

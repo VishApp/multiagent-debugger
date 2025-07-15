@@ -42,11 +42,11 @@ class CodeAgent:
             Agent: The configured CrewAI agent
         """
         # Get LLM configuration parameters
-        provider, model, temperature, api_key, api_base = get_agent_llm_config(self.llm_config)
+        provider, model, temperature, api_key, api_base, additional_params = get_agent_llm_config(self.llm_config)
         verbose = get_verbose_flag(self.config)
         
         # Create LLM
-        llm = create_crewai_llm(provider, model, temperature, api_key, api_base)
+        llm = create_crewai_llm(provider, model, temperature, api_key, api_base, additional_params)
         
         try:
             agent = Agent(

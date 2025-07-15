@@ -315,7 +315,7 @@ def set_crewai_env_vars(provider: str, api_key: str = None):
         # Note: CrewAI may still require OpenAI for some internal operations
         # We handle this by disabling memory for non-OpenAI providers
 
-def create_crewai_llm(provider: str, model: str, temperature: float, api_key: str = None, api_base: str = None):
+def create_crewai_llm(provider: str, model: str, temperature: float, api_key: str = None, api_base: str = None, additional_params: Dict[str, Any] = None):
     """Create a CrewAI LLM object directly.
     
     Args:
@@ -324,12 +324,17 @@ def create_crewai_llm(provider: str, model: str, temperature: float, api_key: st
         temperature: The temperature setting
         api_key: The API key for the provider
         api_base: The API base URL (if needed)
+        additional_params: Additional parameters to pass to the LLM constructor
         
     Returns:
         A CrewAI LLM object
     """
     from crewai import LLM
     import os
+    
+    # Set default for additional_params
+    if additional_params is None:
+        additional_params = {}
     
     # Set the API key in environment if provided
     if api_key:
@@ -372,32 +377,31 @@ def create_crewai_llm(provider: str, model: str, temperature: float, api_key: st
             pass
     
     try:
+        # Build base configuration
+        llm_config = {
+            "model": model,
+            "temperature": temperature,
+            **additional_params  # Include additional parameters
+        }
+        
+        # Add API key and base URL if provided
+        if api_key:
+            llm_config["api_key"] = api_key
+        if api_base:
+            llm_config["base_url"] = api_base
+        
         # Handle OpenRouter specially - it uses OpenAI API format but with custom base URL
         if provider.lower() == "openrouter":
             # For OpenRouter, we need to use the OpenAI provider with custom base URL
-            llm = LLM(
-                model=model,
-                api_key=api_key,
-                temperature=temperature,
-                base_url=api_base or "https://openrouter.ai/api/v1"
-            )
+            llm = LLM(**llm_config)
         elif provider.lower() == "custom":
             # For custom providers, we need to specify the base URL
             if not api_base:
                 raise ValueError("Custom provider requires api_base to be specified")
-            llm = LLM(
-                model=model,
-                api_key=api_key,
-                temperature=temperature,
-                base_url=api_base
-            )
+            llm = LLM(**llm_config)
         else:
             # Create the LLM object with the appropriate model identifier
-            llm = LLM(
-                model=model,
-                api_key=api_key,
-                temperature=temperature
-            )
+            llm = LLM(**llm_config)
         
         return llm
         
@@ -429,7 +433,7 @@ def get_agent_llm_config(llm_config: Any) -> tuple:
         llm_config: LLMConfig object or dictionary containing LLM settings
         
     Returns:
-        Tuple of (provider, model, temperature, api_key, api_base)
+        Tuple of (provider, model, temperature, api_key, api_base, additional_params)
     """
     # Handle both dict and LLMConfig objects
     if hasattr(llm_config, 'provider'):
@@ -457,7 +461,12 @@ def get_agent_llm_config(llm_config: Any) -> tuple:
     else:
         api_base = llm_config.get("api_base")
     
-    return provider, model, temperature, api_key, api_base
+    if hasattr(llm_config, 'additional_params'):
+        additional_params = llm_config.additional_params
+    else:
+        additional_params = llm_config.get("additional_params", {})
+    
+    return provider, model, temperature, api_key, api_base, additional_params
 
 # Global instance of the config manager
 llm_config_manager = LLMConfigManager() 

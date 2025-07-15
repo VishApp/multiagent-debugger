@@ -14,7 +14,7 @@ from multiagent_debugger.agents.root_cause_agent import RootCauseAgent
 from multiagent_debugger.tools.log_tools import create_enhanced_grep_logs_tool, create_enhanced_filter_logs_tool, create_enhanced_extract_stack_traces_tool, create_error_pattern_analysis_tool
 from multiagent_debugger.tools.code_tools import create_find_api_handlers_tool, create_find_dependencies_tool, create_find_error_handlers_tool, create_directory_language_analyzer_tool, create_smart_multilang_search_tool, create_error_pattern_analyzer_tool
 from multiagent_debugger.tools.flowchart_tool import create_error_flowchart_tool, create_system_flowchart_tool, create_decision_flowchart_tool, create_sequence_flowchart_tool, create_debugging_storyboard_tool, create_clean_mermaid_tool, create_comprehensive_debugging_flowchart_tool
-from multiagent_debugger.utils import set_crewai_env_vars, get_env_var_name_for_provider
+from multiagent_debugger.utils import set_crewai_env_vars, get_env_var_name_for_provider, get_verbose_flag
 
 class DebuggerCrew:
     """Main class for orchestrating the multi-agent debugger crew."""
@@ -119,6 +119,9 @@ class DebuggerCrew:
         else:
             provider = self.config.get("llm", {}).get("provider", "openai").lower()
         
+        # Get verbose flag from config
+        verbose = get_verbose_flag(self.config)
+        
         # Configure memory based on provider
         memory_config = {
             "memory": False,
@@ -135,7 +138,7 @@ class DebuggerCrew:
                 self.root_cause_agent_agent
             ],
             tasks=self._create_tasks(""),  # Placeholder, will be replaced in debug()
-            verbose=True,
+            verbose=verbose,
             process=Process.sequential,  # Use sequential process
             max_rpm=15,  # Maximum requests per minute
             max_iter=1,  # Reduced to 1 to prevent infinite loops

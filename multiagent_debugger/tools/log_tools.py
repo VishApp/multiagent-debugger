@@ -718,9 +718,7 @@ def create_error_pattern_analysis_tool(log_paths: List[str] = None):
         cache_key = f"error_patterns_{time_window_hours}_{str(log_paths)}"
         if cache_key in _log_analysis_cache:
             return f"[CACHED RESULT] {_log_analysis_cache[cache_key]}"
-        
-        print(f"[DEBUG] Analyzing error patterns for last {time_window_hours} hours")
-        
+                
         if not log_paths:
             result = "No log paths provided."
             _log_analysis_cache[cache_key] = result

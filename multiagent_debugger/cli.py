@@ -218,6 +218,45 @@ def setup(output: Optional[str] = None):
         show_default=False
     )
     
+    # Get additional parameters (optional)
+    additional_params = {}
+    click.echo("\nAdditional parameters (optional):")
+    click.echo("You can specify additional provider-specific parameters as key=value pairs.")
+    click.echo("Examples: max_tokens=1000, top_p=0.9, frequency_penalty=0.1")
+    click.echo("Press Enter when done or to skip:")
+    
+    while True:
+        param_input = click.prompt(
+            f"Additional parameter {len(additional_params) + 1} (key=value or Enter to finish)",
+            default="",
+            show_default=False
+        )
+        if not param_input:
+            break
+        
+        # Parse key=value format
+        if "=" in param_input:
+            key, value = param_input.split("=", 1)
+            key = key.strip()
+            value = value.strip()
+            
+            # Try to convert value to appropriate type
+            try:
+                # Try as float first
+                if "." in value:
+                    value = float(value)
+                else:
+                    # Try as int
+                    value = int(value)
+            except ValueError:
+                # Keep as string if conversion fails
+                pass
+            
+            additional_params[key] = value
+            click.echo(f"  Added: {key} = {value}")
+        else:
+            click.echo(f"  Invalid format. Use key=value format.")
+    
     # Get log paths (files or directories)
     log_paths = []
     click.echo("\nEnter log file paths or log directories (press Enter when done):")
@@ -253,6 +292,12 @@ def setup(output: Optional[str] = None):
         default="."
     )
     
+    # Get verbose setting
+    verbose = click.confirm(
+        "Enable verbose logging?",
+        default=False
+    )
+    
     # Create config
     config = DebuggerConfig(
         log_paths=log_paths,
@@ -261,9 +306,10 @@ def setup(output: Optional[str] = None):
             provider=provider,
             model_name=model_name,
             api_key=api_key if api_key else None,
-            api_base=api_base if api_base else None
+            api_base=api_base if api_base else None,
+            additional_params=additional_params
         ),
-        verbose=True
+        verbose=verbose
     )
     
     # Convert to dict
