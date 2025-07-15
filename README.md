@@ -84,6 +84,40 @@ multiagent-debugger debug "Why did my /api/users endpoint fail yesterday?"
 - Text documents in current directory
 - Visual flowcharts for documentation
 
+## 🖥️ Command-Line Usage
+
+### Debug Command
+
+```
+Usage: python -m multiagent_debugger debug [OPTIONS] QUESTION
+
+  Debug an API failure or error scenario with multi-agent assistance.
+
+Arguments:
+  QUESTION    The natural language question or debugging prompt.
+              Example: 'find the common errors and the root-cause'
+
+Options:
+  -c, --config PATH             Path to config file (YAML)
+  -v, --verbose                 Enable verbose output for detailed logs
+  --mode [frequent|latest|all]  Log analysis mode:
+                                  frequent: Find most common error patterns
+                                  latest:   Focus on most recent errors
+                                  all:      Analyze all available log lines
+  --time-window-hours INT       Time window (hours) for log analysis
+  --max-lines INT               Maximum log lines to analyze
+  -h, --help                    Show this message and exit
+
+Examples:
+  multiagent-debugger debug 'find the common errors and the root-cause' \
+      --config ~/.config/multiagent-debugger/config.yaml --mode latest
+
+  multiagent-debugger debug 'why did the upload to S3 fail?' \
+      --mode frequent --time-window-hours 12
+```
+
+This command analyzes your logs, extracts error patterns and code paths, and provides root cause analysis with actionable solutions and flowcharts.
+
 ## ⚙️ Configuration
 
 Create a `config.yaml` file (or use the setup command):
@@ -91,18 +125,20 @@ Create a `config.yaml` file (or use the setup command):
 ```yaml
 # Paths to log files
 log_paths:
-  - /var/log/myapp/app.log
-  - /var/log/nginx/access.log
+  - "/var/log/myapp/app.log"
+  - "/var/log/nginx/access.log"
 
-# Path to codebase
-code_path: /path/to/your/code
+# Log analysis options
+analysis_mode: "frequent"   # frequent, latest, all
+time_window_hours: 24      # analyze logs from last N hours
+max_lines: 10000           # maximum log lines to analyze
 
 # LLM configuration
 llm:
   provider: openai  # or anthropic, google, ollama, etc.
   model_name: gpt-4
   temperature: 0.1
-  # api_key: optional, can use environment variable
+  #api_key: optional, can use environment variable
 ```
 
 ### Custom Providers
@@ -131,13 +167,14 @@ Set the appropriate environment variable for your chosen provider:
 - Searches through specified log files using enhanced grep
 - Filters relevant log entries by time and pattern
 - Extracts stack traces and error patterns
+- **Dynamically extracts code paths** (file paths, line numbers, function names)
 - Validates code paths found in logs
 
 ### 3. Code Analysis
 - Locates relevant API handlers and endpoints
 - Identifies dependencies and error handlers
 - Maps the code structure and relationships
-- Supports multiple programming languages
+- Supports multiple programming languages (Python, JavaScript, Java, Go, Rust, etc.)
 
 ### 4. Root Cause Analysis
 - Synthesizes information from all previous agents
@@ -166,6 +203,16 @@ multiagent-debugger list-models openai
 ### Debug with Custom Config
 ```bash
 multiagent-debugger debug "Question?" --config path/to/config.yaml
+```
+
+### Analyze Recent Errors Only
+```bash
+multiagent-debugger debug "What went wrong?" --mode latest --time-window-hours 2
+```
+
+### Analyze Large Log Files
+```bash
+multiagent-debugger debug "Find patterns" --max-lines 50000
 ```
 
 ## 🧪 Development
@@ -213,3 +260,5 @@ Contributions are welcome! Please feel free to submit a Pull Request.
 - **Documentation**: Generate visual flowcharts for error propagation
 - **Team Collaboration**: Share analysis results in multiple formats
 - **Multi-language Projects**: Support for Python, JavaScript, Java, Go, Rust, and more
+- **Time-based Analysis**: Focus on recent errors or specific time periods
+- **Large Log Analysis**: Handle massive log files with configurable limits

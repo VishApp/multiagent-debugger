@@ -7,11 +7,10 @@ from crewai.tools import tool
 
 from multiagent_debugger.agents.question_analyzer_agent import QuestionAnalyzerAgent
 from multiagent_debugger.agents.log_agent import LogAgent
-from multiagent_debugger.agents.code_path_analyzer_agent import CodePathAnalyzerAgent
 from multiagent_debugger.agents.code_agent import CodeAgent
 from multiagent_debugger.agents.root_cause_agent import RootCauseAgent
 
-from multiagent_debugger.tools.log_tools import create_enhanced_grep_logs_tool, create_enhanced_filter_logs_tool, create_enhanced_extract_stack_traces_tool, create_error_pattern_analysis_tool
+from multiagent_debugger.tools.log_tools import create_enhanced_grep_logs_tool, create_enhanced_filter_logs_tool, create_enhanced_extract_stack_traces_tool, create_error_pattern_analysis_tool, create_intelligent_error_analysis_tool
 from multiagent_debugger.tools.code_tools import create_find_api_handlers_tool, create_find_dependencies_tool, create_find_error_handlers_tool, create_directory_language_analyzer_tool, create_smart_multilang_search_tool, create_error_pattern_analyzer_tool
 from multiagent_debugger.tools.flowchart_tool import create_error_flowchart_tool, create_system_flowchart_tool, create_decision_flowchart_tool, create_sequence_flowchart_tool, create_debugging_storyboard_tool, create_clean_mermaid_tool, create_comprehensive_debugging_flowchart_tool
 from multiagent_debugger.utils import set_crewai_env_vars, get_env_var_name_for_provider, get_verbose_flag
@@ -31,11 +30,6 @@ class DebuggerCrew:
             self.log_paths = config.log_paths
         else:
             self.log_paths = config.get("log_paths", [])
-            
-        if hasattr(config, 'code_path'):
-            self.code_path = config.code_path
-        else:
-            self.code_path = config.get("code_path", "")
         
         # Get provider and set environment variables
         if hasattr(config, 'llm'):
@@ -57,7 +51,6 @@ class DebuggerCrew:
         # Initialize agents
         self.question_analyzer = QuestionAnalyzerAgent(config)
         self.log_agent = LogAgent(config)
-        self.code_path_analyzer = CodePathAnalyzerAgent(config)
         self.code_agent = CodeAgent(config)
         self.root_cause_agent = RootCauseAgent(config)
         
@@ -69,7 +62,6 @@ class DebuggerCrew:
         # Create CrewAI agents with retry configuration
         self.question_analyzer_agent = self.question_analyzer.create_agent()
         self.log_agent_agent = self.log_agent.create_agent(tools=self.log_tools + self.flowchart_tools)
-        self.code_path_analyzer_agent = self.code_path_analyzer.create_agent()
         self.code_agent_agent = self.code_agent.create_agent(tools=self.code_tools + self.flowchart_tools)
         self.root_cause_agent_agent = self.root_cause_agent.create_agent(tools=self.flowchart_tools)
         
@@ -89,22 +81,30 @@ class DebuggerCrew:
     
     def _create_log_tools(self) -> List:
         """Create tools for log analysis."""
+        # Create agent config dict for tools with proper defaults
+        agent_config = {
+            'analysis_mode': getattr(self.config, 'analysis_mode', 'frequent'),
+            'time_window_hours': getattr(self.config, 'time_window_hours', 24),
+            'max_lines': getattr(self.config, 'max_lines', 10000)
+        }
+        
         return [
-            create_enhanced_grep_logs_tool(self.log_paths),
-            create_enhanced_filter_logs_tool(self.log_paths), 
-            create_enhanced_extract_stack_traces_tool(self.log_paths),
-            create_error_pattern_analysis_tool(self.log_paths),
+            create_intelligent_error_analysis_tool(self.log_paths, agent_config),  # Primary tool
+            create_enhanced_grep_logs_tool(self.log_paths, agent_config),          # Fallback
+            create_enhanced_filter_logs_tool(self.log_paths, agent_config),        # Fallback
+            create_enhanced_extract_stack_traces_tool(self.log_paths, agent_config), # Fallback
+            create_error_pattern_analysis_tool(self.log_paths, agent_config),      # Fallback
         ]
     
     def _create_code_tools(self) -> List:
-        """Create tools for code analysis."""
+        """Create code analysis tools."""
         return [
-            create_find_api_handlers_tool(self.code_path),
-            create_find_dependencies_tool(self.code_path),
-            create_find_error_handlers_tool(self.code_path),
-            create_directory_language_analyzer_tool(self.code_path),
-            create_smart_multilang_search_tool(self.code_path),
-            create_error_pattern_analyzer_tool(self.code_path),
+            create_find_api_handlers_tool(""),  # Will be set dynamically based on log extraction
+            create_find_dependencies_tool(""),  # Will be set dynamically based on log extraction
+            create_find_error_handlers_tool(""),  # Will be set dynamically based on log extraction
+            create_directory_language_analyzer_tool(""),  # Will be set dynamically based on log extraction
+            create_smart_multilang_search_tool(""),  # Will be set dynamically based on log extraction
+            create_error_pattern_analyzer_tool(""),  # Will be set dynamically based on log extraction
         ]
     
     def _create_crew(self) -> Crew:
@@ -116,8 +116,10 @@ class DebuggerCrew:
         # Get provider info for memory configuration
         if hasattr(self.config, 'llm'):
             provider = self.config.llm.provider.lower()
-        else:
+        elif isinstance(self.config, dict):
             provider = self.config.get("llm", {}).get("provider", "openai").lower()
+        else:
+            provider = "openai"
         
         # Get verbose flag from config
         verbose = get_verbose_flag(self.config)
@@ -133,7 +135,6 @@ class DebuggerCrew:
             agents=[
                 self.question_analyzer_agent,
                 self.log_agent_agent,
-                self.code_path_analyzer_agent,
                 self.code_agent_agent,
                 self.root_cause_agent_agent
             ],
@@ -201,12 +202,6 @@ class DebuggerCrew:
             if not valid_log_paths:
                 issues.append("❌ No valid log files found - cannot perform log analysis")
         
-        # Check code path
-        if not self.code_path:
-            issues.append("❌ No code path configured")
-        elif not os.path.exists(self.code_path):
-            issues.append(f"❌ Code path does not exist: {self.code_path}")
-        
         if issues:
             return f"""
 🚨 CONFIGURATION VALIDATION FAILED
@@ -216,17 +211,15 @@ The following issues prevent debugging from proceeding:
 {chr(10).join(issues)}
 
 📋 REQUIRED ACTIONS:
-1. Update your config.yaml with valid paths
+1. Update your config.yaml with valid log paths
 2. Ensure log files exist and are readable
-3. Ensure code path points to a valid directory
-4. Run the debugger again
+3. Run the debugger again
 
 Example valid configuration:
 ```yaml
 log_paths:
   - /var/log/myapp/app.log
   - /var/log/nginx/access.log
-code_path: /path/to/your/codebase
 ```
 """
         
@@ -320,292 +313,295 @@ The analyzer should extract ALL file paths mentioned in your error/question.
         return None
     
     def _create_tasks(self, question: str) -> List[Task]:
-        """Create tasks for the debugging process with conditional flow logic.
+        """Create tasks for the crew based on the question.
         
         Args:
             question: The debugging question to answer
             
         Returns:
-            List of CrewAI Task objects
+            List of tasks for the crew
         """
-        # Task 1: Question Analyzer - Break user's question into clear tasks
-        analyze_task = Task(
+        from crewai import Task
+        
+        # Task 1: Question Analysis
+        question_task = Task(
             description=f"""
-        SYSTEM INSTRUCTION: You are a multi-agent system designed to debug application issues.
-
-        TASK: Break the user's question into clear tasks for log agent, code agent, root cause agent, and flowchart analysis agent.
-
-        USER QUESTION: '{question}'
-
-        ANALYSIS REQUIREMENTS:
-        1. Extract error type, severity, and key details
-        2. Identify search terms for log analysis
-        3. Determine code focus areas
-        4. Create investigation roadmap
-
-        OUTPUT FORMAT (STRUCTURED JSON):
-        {{
-          "error_classification": {{
-            "type": "[API|Database|File|Network|Script|OS|Memory|Auth|Config]",
-            "severity": "[P0-Critical|P1-Urgent|P2-High|P3-Medium]",
-            "description": "[Brief error description]"
-          }},
-          "log_analysis_tasks": {{
-            "search_terms": ["primary_term", "secondary_term"],
-            "time_window": "[if specified]",
-            "focus_areas": ["error_patterns", "stack_traces"]
-          }},
-          "code_analysis_tasks": {{
-            "files": ["specific_files_if_mentioned"],
-            "functions": ["specific_functions_if_mentioned"],
-            "patterns": ["error_patterns_to_look_for"]
-          }},
-          "investigation_roadmap": {{
-            "priority": "[high|medium|low]",
-            "next_steps": ["step1", "step2", "step3"]
-          }}
-        }}
-
-        CRITICAL RULES:
-        - ONLY extract information EXPLICITLY mentioned in the user's question
-        - NEVER invent or assume file names, function names, or paths
-        - If no specific details are mentioned, mark as "not_specified"
-        - Be concise, clear, and developer-friendly
-        """,
+            SYSTEM INSTRUCTION: You are a multi-agent system designed to debug application issues.
+            
+            TASK: Break the user's question into clear tasks for log agent, code agent, and root cause agent.
+            
+            USER QUESTION: '{question}'
+            
+            ANALYSIS REQUIREMENTS:
+            1. Extract error type, severity, and key details
+            2. Identify search terms for log analysis
+            3. Determine code focus areas
+            4. Create investigation roadmap
+            
+            OUTPUT FORMAT (STRUCTURED JSON):
+            {{
+              "error_classification": {{
+                "type": "[API|Database|File|Network|Script|OS|Memory|Auth|Config]",
+                "severity": "[P0-Critical|P1-Urgent|P2-High|P3-Medium]",
+                "description": "[Brief error description]"
+              }},
+              "log_analysis_tasks": {{
+                "search_terms": ["primary_term", "secondary_term"],
+                "time_window": "[if specified]",
+                "focus_areas": ["error_patterns", "stack_traces"]
+              }},
+              "code_analysis_tasks": {{
+                "files": ["specific_files_if_mentioned"],
+                "functions": ["specific_functions_if_mentioned"],
+                "patterns": ["error_patterns_to_look_for"]
+              }},
+              "investigation_roadmap": {{
+                "priority": "[high|medium|low]",
+                "next_steps": ["step1", "step2", "step3"]
+              }}
+            }}
+            
+            CRITICAL RULES:
+            - ONLY extract information EXPLICITLY mentioned in the user's question
+            - NEVER invent or assume file names, function names, or paths
+            - If no specific details are mentioned, mark as "not_specified"
+            - Be concise, clear, and developer-friendly
+            """,
             agent=self.question_analyzer_agent,
-            expected_output="Structured JSON with error classification and investigation roadmap",
-            max_iter=1,
-            async_execution=False,
+            expected_output="Structured JSON with error classification and analysis tasks"
         )
         
-        # Task 2: Log Analyzer - Extract latest relevant error from logs
+        # Task 2: Log Analysis with Code Path Extraction
         log_task = Task(
-            description="""
-        SYSTEM INSTRUCTION: You are a multi-agent system designed to debug application issues.
-
-        TASK: Analyze logs based on the analysis type from Question Analyzer:
-        - For "pattern_analysis": Find common error patterns and frequencies
-        - For "recent_search": Extract the latest relevant error
-        - For "comprehensive_search": Show all errors with context
-
-        TOOL USAGE STRATEGY (BASED ON ANALYSIS TYPE):
-        
-        PATTERN ANALYSIS (for "common errors", "frequent errors"):
-        1. Use analyze_error_patterns to find common patterns
-        2. Use filter_logs for detailed breakdown if needed
-        
-        RECENT SEARCH (for "latest error", "last error"):
-        1. Use grep_logs with search terms (sorted by time)
-        2. Use filter_logs for additional context
-        3. Use extract_stack_traces if exceptions found
-        
-        COMPREHENSIVE SEARCH (for "all errors", "show errors"):
-        1. Use grep_logs for broad error search
-        2. Use filter_logs for error level filtering
-        3. Use extract_stack_traces for detailed analysis
-
-        OUTPUT FORMAT (STRUCTURED JSON):
-        {
-          "log_investigation": {
-            "analysis_type": "[pattern_analysis|recent_search|comprehensive_search]",
-            "primary_evidence": "[Key findings from log search]",
-            "error_patterns": {
-              "total_patterns": "[number]",
-              "most_common": "[pattern with highest frequency]",
-              "frequency_distribution": "[summary of pattern frequencies]"
-            },
-            "error_timeline": {
-              "first_occurrence": "[timestamp]",
-              "pattern": "[frequency - single/recurring/periodic]",
-              "last_occurrence": "[timestamp]"
-            },
-            "supporting_evidence": "[Additional context from logs]",
-            "code_path": "[extracted file path from stack trace] OR null",
-            "function_name": "[extracted function name if available]",
-            "line_number": "[extracted line number if available]"
-          },
-          "config_validation": {
-            "code_path_found": true/false,
-            "in_config_yaml": true/false,
-            "config_issues": ["list of config issues"],
-            "config_recommendations": ["list of config fixes"]
-          },
-          "next_agent": "code_path_analyzer" OR "root_cause_analyzer"
-        }
-
-        CRITICAL RULES:
-        - If no code_path is found in logs, mark "code_path": null
-        - If code_path is null, set next_agent to "root_cause_analyzer"
-        - If code_path is found, set next_agent to "code_path_analyzer"
-        - Validate code_path against config.yaml if found
-        - Be explicit about missing or uncertain data
-        """,
+            description=f"""
+            SYSTEM INSTRUCTION: You are a log analysis agent that extracts code paths and line numbers from error logs.
+            
+            TASK: Analyze logs to extract code paths, line numbers, and function names for code analysis.
+            
+            USER QUESTION: '{question}'
+            
+            CRITICAL EXTRACTION TASKS:
+            1. Extract code paths from stack traces and error messages
+            2. Identify line numbers where errors occurred
+            3. Extract function names from error context
+            4. Determine the most recent error occurrence
+            
+            OUTPUT FORMAT (STRUCTURED JSON):
+            {{
+              "log_analysis": {{
+                "analysis_type": "[pattern_analysis|recent_search|comprehensive_search]",
+                "primary_evidence": "[Key findings from log search]",
+                "error_patterns": {{
+                  "total_patterns": "[number]",
+                  "most_common": "[pattern with highest frequency]",
+                  "frequency_distribution": "[summary of pattern frequencies]"
+                }},
+                "error_timeline": {{
+                  "first_occurrence": "[timestamp]",
+                  "pattern": "[frequency - single/recurring/periodic]",
+                  "last_occurrence": "[timestamp]"
+                }},
+                "supporting_evidence": "[Additional context from filter_logs]"
+              }},
+              "code_path_extraction": {{
+                "extracted_code_paths": [
+                  {{
+                    "file_path": "/full/path/to/file.ext",
+                    "line_number": 123,
+                    "function_name": "function_name",
+                    "error_context": "[error message or stack trace line]",
+                    "timestamp": "[when this error occurred]",
+                    "confidence": "[high|medium|low]"
+                  }}
+                ],
+                "most_recent_error": {{
+                  "file_path": "/path/to/most/recent/file.ext",
+                  "line_number": 456,
+                  "function_name": "recent_function",
+                  "error_message": "[the actual error message]",
+                  "timestamp": "[most recent timestamp]"
+                }},
+                "extraction_quality": "[high|medium|low] - based on clarity of stack traces"
+              }},
+              "code_analysis_decision": {{
+                "should_analyze_code": true/false,
+                "reason": "[why code analysis is needed or not]",
+                "target_file": "/path/to/analyze.ext",
+                "target_line": 123,
+                "target_function": "function_name",
+                "code_path": "/directory/containing/the/file"
+              }}
+            }}
+            
+            DECISION LOGIC:
+            - If code paths found: set should_analyze_code = true and provide code_path
+            - If no code paths found: set should_analyze_code = false
+            - The code_path should be the directory containing the target file
+            """,
             agent=self.log_agent_agent,
-            expected_output="Structured JSON with log findings and next agent decision",
-            context=[analyze_task],
-            max_iter=1,
-            async_execution=False,
+            expected_output="Structured JSON with log analysis and code analysis decision",
+            context=[question_task]
         )
         
-        # Task 3: Code Path Analyzer - Verify code path exists and validate config
-        code_path_task = Task(
-            description="""
-        SYSTEM INSTRUCTION: You are a multi-agent system designed to debug application issues.
-
-        TASK: Given the code_path from log analysis, verify it exists in the project and is reachable. Check config.yaml to see if the code_path or its module is correctly referenced.
-
-        VALIDATION REQUIREMENTS:
-        1. Verify file exists on disk
-        2. Check if file is within project structure
-        3. Validate file is accessible and readable
-        4. Check if code_path is properly referenced in config.yaml
-        5. If code_path is correct, analyze the file for functions, classes, objects related to the error
-
-        OUTPUT FORMAT (STRUCTURED JSON):
-        {
-          "validation_result": {
-            "exists": true/false,
-            "reachable": true/false,
-            "accessible": true/false,
-            "relevant": true/false,
-            "project_root": "/path/to/project",
-            "relative_path": "src/actions/file.py",
-            "file_size": 1234,
-            "last_modified": "2024-01-01T12:00:00Z",
-            "language": "python",
-            "issues": ["list of validation issues"]
-          },
-          "config_validation": {
-            "in_config_yaml": true/false,
-            "config_issues": ["list of config issues"],
-            "config_recommendations": ["list of config fixes"]
-          },
-          "code_analysis": {
-            "functions": ["list of functions in the file"],
-            "classes": ["list of classes in the file"],
-            "error_related_objects": ["objects related to the error"],
-            "suggested_focus": ["specific areas to investigate"]
-          },
-          "next_agent": "root_cause_analyzer"
-        }
-
-        CRITICAL RULES:
-        - If validation fails, provide clear reasons and recommendations
-        - If validation succeeds, analyze the file for error-related code
-        - Always check config.yaml for proper module references
-        - Be explicit about any missing or uncertain data
-        """,
-            agent=self.code_path_analyzer_agent,
-            expected_output="Structured JSON with validation results and code analysis",
-            context=[log_task],
-            max_iter=1,
-            async_execution=False,
-        )
-        
-        # Task 4: Code Analyzer - Analyze specific code for error patterns
+        # Task 3: Conditional Code Analysis (only if code paths found)
         code_task = Task(
-            description="""
-        SYSTEM INSTRUCTION: You are a multi-agent system designed to debug application issues.
-
-        TASK: Analyze the validated code path for error patterns, functions, classes, and objects related to the error.
-
-        ANALYSIS REQUIREMENTS:
-        1. Use find_error_handlers with the validated file path and function_name (use empty string "" if not available)
-        2. Analyze error handling patterns in the code
-        3. Identify functions and classes related to the error
-        4. Find potential root causes in the code
-
-        TOOL USAGE EXAMPLES:
-        - If you have a file path: find_error_handlers(file_path="/path/to/file.py", function_name="")
-        - If you have both: find_error_handlers(file_path="/path/to/file.py", function_name="function_name")
-        - If you have neither: find_error_handlers(file_path="", function_name="")
-
-        OUTPUT FORMAT (STRUCTURED JSON):
-        {
-          "code_analysis": {
-            "error_handlers": ["list of error handlers found"],
-            "functions": ["list of relevant functions"],
-            "classes": ["list of relevant classes"],
-            "error_patterns": ["patterns that could cause the error"],
-            "potential_issues": ["specific code issues identified"]
-          },
-          "recommendations": {
-            "immediate_fixes": ["quick fixes that can be applied"],
-            "long_term_improvements": ["longer term improvements"],
-            "testing_suggestions": ["how to test the fixes"]
-          }
-        }
-
-        CRITICAL RULES:
-        - Focus on the specific file path validated by Code Path Analyzer
-        - Use find_error_handlers tool with exact file path
-        - Provide specific, actionable recommendations
-        - Be explicit about any missing or uncertain data
-        """,
+            description=f"""
+            SYSTEM INSTRUCTION: You are a targeted code analysis agent that analyzes specific files and line numbers.
+            
+            TASK: Analyze the specific file and line number extracted from logs to identify the root cause.
+            
+            CONTEXT: Use the code_analysis_decision from the log agent to determine what to analyze.
+            
+            CRITICAL: You MUST use the exact file paths and line numbers extracted by the log agent.
+            The log agent provides extracted_code_paths with file_path, line_number, and function_name.
+            Use these exact values in your analysis and file references.
+            
+            ANALYSIS FOCUS:
+            1. Analyze the target file and line number from log extraction
+            2. Examine the function containing the error line
+            3. Identify potential null/undefined access, type mismatches, etc.
+            4. Provide specific fixes with line references
+            
+            CRITICAL: Use the code_path parameter in all code analysis tools. The log agent extracts this from stack traces.
+            
+            TOOL USAGE GUIDE:
+            - Use find_error_handlers to analyze error handling in the target file
+            - Use find_dependencies to analyze function dependencies
+            - Use smart_multilang_search to search for specific error patterns
+            - Use directory_language_analyzer for broader code analysis
+            - DO NOT use find_api_handlers for file analysis (it's for API routes only)
+            
+            OUTPUT FORMAT (STRUCTURED JSON):
+            {{
+              "validation": {{
+                "is_log_file": true/false,
+                "should_analyze": true/false,
+                "reason": "[why analysis should/should not proceed]"
+              }},
+              "targeted_analysis": {{
+                "target_file": "/path/to/analyzed/file.ext",
+                "target_line": 123,
+                "target_function": "function_name",
+                "file_exists": true/false,
+                "file_accessible": true/false,
+                "analysis_quality": "[high|medium|low]"
+              }},
+              "line_analysis": {{
+                "error_line_code": "[actual code at the error line]",
+                "error_line_context": "[context around the error line]",
+                "potential_issues": [
+                  {{
+                    "issue_type": "[null_access|type_error|logic_error|etc]",
+                    "description": "[specific issue description]",
+                    "line_number": 123,
+                    "confidence": "[high|medium|low]"
+                  }}
+                ]
+              }},
+              "function_analysis": {{
+                "function_name": "function_name",
+                "function_signature": "def function_name(param1, param2):",
+                "parameters": ["param1", "param2"],
+                "return_type": "[expected return type]",
+                "error_handling": "[present|missing|inadequate]",
+                "validation_logic": "[present|missing|inadequate]"
+              }},
+              "code_issues": {{
+                "immediate_fixes": [
+                  {{
+                    "action": "[specific fix action]",
+                    "line_number": 123,
+                    "description": "[what to change]",
+                    "impact": "[what this fix will solve]"
+                  }}
+                ]
+              }},
+              "analysis_summary": {{
+                "root_cause": "[definitive cause of the error]",
+                "confidence_level": "[high|medium|low]",
+                "evidence_quality": "[strong|medium|weak]",
+                "fix_complexity": "[simple|moderate|complex]"
+              }}
+            }}
+            
+            CRITICAL RULES:
+            - Focus on the specific file and line from log extraction
+            - Provide actionable fixes with exact line references
+            - If file doesn't exist, report file_exists: false
+            - ALWAYS use the exact file paths from the log agent's extracted_code_paths
+            - NEVER reference log files (.log files) in your analysis
+            - Always pass the extracted code_path to code analysis tools
+            - MUST analyze the actual code in the extracted files using appropriate tools
+            - Use find_error_handlers with the extracted file_path to examine error handling
+            - Use find_dependencies with the extracted file_path to understand dependencies
+            - CRITICAL: If the target_file ends with .log or contains /logs/, DO NOT analyze it
+            - CRITICAL: If the target_file is a log file, report "No source code files found for analysis"
+            - CRITICAL: Only analyze actual source code files (.go, .py, .js, etc.), never log files
+            """,
             agent=self.code_agent_agent,
-            expected_output="Structured JSON with code analysis and recommendations",
-            context=[code_path_task],
-            max_iter=1,
-            async_execution=False,
+            expected_output="Structured JSON with targeted code analysis",
+            context=[question_task, log_task]
         )
         
-        # Task 5: Root Cause Analyzer - Correlate findings and propose fixes
+        # Task 4: Root Cause Analysis (final synthesis)
         root_cause_task = Task(
-            description="""
-        SYSTEM INSTRUCTION: You are a multi-agent system designed to debug application issues.
-
-        TASK: Correlate findings from all previous agents to determine the root cause and propose precise debugging and fix steps.
-
-        SYNTHESIS REQUIREMENTS:
-        1. Cross-validate findings from question, log, code path, and code analysis
-        2. Determine definitive root cause with confidence level
-        3. Create comprehensive solution roadmap
-        4. Generate visual flowcharts for documentation
-        5. Create copyable error flow chart using create_clean_error_flow tool
-
-        TOOL USAGE:
-        - ALWAYS use create_clean_error_flow tool to generate a copyable error flow chart
-        - Extract error_type, error_message, components, timeline, severity from previous agents' findings
-        - Include the clean mermaid code in flowchart_data.error_flow
-
-        OUTPUT FORMAT (STRUCTURED JSON):
-        {
-          "root_cause_analysis": {
-            "primary_cause": "[definitive technical explanation]",
-            "confidence_level": "[high|medium|low]",
-            "contributing_factors": ["list of contributing factors"],
-            "error_chain": ["sequence of events leading to error"]
-          },
-          "solution_roadmap": {
-            "immediate_fixes": [
-              {
-                "action": "[specific action]",
-                "file": "[file:line reference]",
-                "description": "[what to change]"
-              }
-            ],
-            "long_term_improvements": ["list of improvements"],
-            "testing_steps": ["how to verify the fix"],
-            "rollback_plan": ["how to rollback if needed"]
-          },
-          "flowchart_data": {
-            "error_flow": "[clean mermaid code from create_clean_error_flow tool]"
-          }
-        }
-
-        CRITICAL RULES:
-        - Use EXACT information from previous agents
-        - Be concise, clear, and developer-friendly
-        - Always recommend actionable next steps
-        - Explicitly note missing or uncertain data
-        - Generate mermaid diagrams for visual representation
-        - ALWAYS include error_flow in flowchart_data using create_clean_error_flow tool
-        """,
+            description=f"""
+            SYSTEM INSTRUCTION: You are a root cause analysis agent that synthesizes findings into actionable solutions.
+            
+            TASK: Synthesize findings from all previous agents to determine the root cause and provide solutions.
+            
+            CONTEXT: Use results from question analysis, log analysis, and code analysis (if available).
+            
+            SYNTHESIS PROCESS:
+            1. Combine findings from all agents
+            2. Determine the definitive root cause
+            3. Create actionable solutions
+            4. Generate visual flowcharts
+            
+            OUTPUT FORMAT (STRUCTURED JSON):
+            {{
+              "root_cause_analysis": {{
+                "primary_cause": "[definitive technical explanation]",
+                "confidence_level": "[high|medium|low]",
+                "contributing_factors": ["list of contributing factors"],
+                "error_chain": ["sequence of events"]
+              }},
+              "solution_roadmap": {{
+                "immediate_fixes": [
+                  {{
+                    "action": "[specific action]",
+                    "file": "[file:line reference]",
+                    "description": "[what to change]",
+                    "impact": "[what this will solve]"
+                  }}
+                ],
+                "long_term_improvements": ["list of improvements"],
+                "testing_steps": ["how to test the fixes"],
+                "rollback_plan": ["how to rollback if needed"]
+              }},
+              "flowchart_data": {{
+                "error_flow": "[clean mermaid code from create_clean_error_flow or create_minimal_error_flow tool]",
+                "flowchart_style": "[clean|minimal]"
+              }},
+              "synthesis_summary": {{
+                "classification": "[Error type]",
+                "evidence_quality": "[Strong/Medium/Weak]",
+                "consistency": "[High/Medium/Low across all agents]"
+              }}
+            }}
+            
+            CRITICAL RULES:
+            - Use EXACT information from previous agents
+            - Generate clean, minimal mermaid diagrams
+            - Provide actionable next steps
+            - Be explicit about missing or uncertain data
+            - ALWAYS use the exact file paths from the code analysis agent
+            - NEVER reference log files (.log files) in your solutions
+            - Use the target_file and target_line from the code analysis for file references
+            """,
             agent=self.root_cause_agent_agent,
-            expected_output="Structured JSON with root cause analysis, solution roadmap, and flowchart data",
-            context=[analyze_task, log_task, code_path_task, code_task],
-            max_iter=1,
-            async_execution=False,
+            expected_output="Structured JSON with root cause analysis and solutions",
+            context=[question_task, log_task, code_task]
         )
         
-        return [analyze_task, log_task, code_path_task, code_task, root_cause_task] 
+        return [question_task, log_task, code_task, root_cause_task] 

@@ -640,34 +640,36 @@ class CodeAnalyzer:
 def create_find_api_handlers_tool(code_path: str = None):
     """Create an enhanced find API handlers tool."""
     @tool("find_api_handlers")
-    def find_api_handlers_tool(api_route: str) -> str:
+    def find_api_handlers_tool(api_route: str, code_path: str = None) -> str:
         """Find API handler functions in the codebase for a specific API route.
         
         Args:
             api_route: The API route to find handlers for
+            code_path: Optional code path (if not provided, will use default or extracted path)
             
         Returns:
             String containing detailed information about found API handlers
         """
+        # Use provided code_path or fall back to default
+        effective_code_path = code_path or ""
+        
         # Check cache
-        cache_key = f"api_handlers_{api_route}_{code_path}"
+        cache_key = f"api_handlers_{api_route}_{effective_code_path}"
         if cache_key in _code_analysis_cache:
             return f"[CACHED RESULT] {_code_analysis_cache[cache_key]}"
         
-        print(f"[DEBUG] Finding API handlers for route: {api_route}")
-        
-        if not code_path:
-            result = "❌ ERROR: No code path configured. Cannot perform code analysis."
+        if not effective_code_path:
+            result = "❌ ERROR: No code path provided. Cannot perform code analysis."
             _code_analysis_cache[cache_key] = result
             return result
         
-        if not os.path.exists(code_path):
-            result = f"❌ ERROR: Code path does not exist: {code_path}"
+        if not os.path.exists(effective_code_path):
+            result = f"❌ ERROR: Code path does not exist: {effective_code_path}"
             _code_analysis_cache[cache_key] = result
             return result
         
         try:
-            analyzer = CodeAnalyzer(code_path)
+            analyzer = CodeAnalyzer(effective_code_path)
             handlers = analyzer.find_api_handlers(api_route)
             
             if not handlers:
@@ -717,27 +719,33 @@ def create_find_api_handlers_tool(code_path: str = None):
 def create_find_dependencies_tool(code_path: str = None):
     """Create an enhanced find dependencies tool."""
     @tool("find_dependencies")
-    def find_dependencies_tool(function_name: str = None, file_path: str = None) -> str:
+    def find_dependencies_tool(function_name: str = "", file_path: str = "", code_path: str = "") -> str:
         """Find dependencies of a specific function or module.
         
         Args:
-            function_name: Optional name of the function to analyze
-            file_path: Optional path to the file to analyze
+            function_name: Name of the function to analyze (can be empty string)
+            file_path: Path to the file to analyze (can be empty string)
+            code_path: Code path (if not provided, will use default or extracted path)
             
         Returns:
             String containing detailed dependency information
         """
+        # Use provided code_path or fall back to default
+        effective_code_path = code_path or ""
+        
         # Check cache
-        cache_key = f"dependencies_{function_name}_{file_path}_{code_path}"
+        cache_key = f"dependencies_{function_name}_{file_path}_{effective_code_path}"
         if cache_key in _code_analysis_cache:
             return f"[CACHED RESULT] {_code_analysis_cache[cache_key]}"
         
-        print(f"[DEBUG] Finding dependencies for function: {function_name}, file: {file_path}")
-        
-        if not code_path or not os.path.exists(code_path):
+        if not effective_code_path or not os.path.exists(effective_code_path):
             result = "No valid code path provided."
             _code_analysis_cache[cache_key] = result
             return result
+        
+        # Convert empty strings to None for the analyzer
+        function_name = function_name if function_name else None
+        file_path = file_path if file_path else None
         
         if not function_name and not file_path:
             result = "Please provide either a function name or a file path."
@@ -745,7 +753,7 @@ def create_find_dependencies_tool(code_path: str = None):
             return result
         
         try:
-            analyzer = CodeAnalyzer(code_path)
+            analyzer = CodeAnalyzer(effective_code_path)
             dependencies = analyzer.find_dependencies(function_name, file_path)
             
             # Format results
@@ -783,24 +791,26 @@ def create_find_dependencies_tool(code_path: str = None):
 def create_find_error_handlers_tool(code_path: str = None):
     """Create an enhanced find error handlers tool."""
     @tool("find_error_handlers")
-    def find_error_handlers_tool(file_path: str, function_name: str = "") -> str:
+    def find_error_handlers_tool(file_path: str = "", function_name: str = "", code_path: str = "") -> str:
         """Find error handling code in the codebase.
         
         Args:
-            file_path: Path to the file to search in (required)
-            function_name: Name of the function to search in (optional, defaults to empty string)
+            file_path: Path to the file to search in (can be empty string)
+            function_name: Name of the function to search in (can be empty string)
+            code_path: Code path (if not provided, will use default or extracted path)
             
         Returns:
             String containing detailed error handler information
         """
+        # Use provided code_path or fall back to default
+        effective_code_path = code_path or ""
+        
         # Check cache
-        cache_key = f"error_handlers_{file_path}_{function_name}_{code_path}"
+        cache_key = f"error_handlers_{file_path}_{function_name}_{effective_code_path}"
         if cache_key in _code_analysis_cache:
             return f"[CACHED RESULT] {_code_analysis_cache[cache_key]}"
         
-        print(f"[DEBUG] Finding error handlers in file: {file_path}, function: {function_name}")
-        
-        if not code_path or not os.path.exists(code_path):
+        if not effective_code_path or not os.path.exists(effective_code_path):
             result = "No valid code path provided."
             _code_analysis_cache[cache_key] = result
             return result
@@ -809,8 +819,13 @@ def create_find_error_handlers_tool(code_path: str = None):
         file_path = file_path if file_path else None
         function_name = function_name if function_name else None
         
+        if not file_path:
+            result = "Please provide a file path to search for error handlers."
+            _code_analysis_cache[cache_key] = result
+            return result
+        
         try:
-            analyzer = CodeAnalyzer(code_path)
+            analyzer = CodeAnalyzer(effective_code_path)
             error_handlers = analyzer.find_error_handlers(file_path, function_name)
             
             if not error_handlers:
@@ -865,388 +880,246 @@ from crewai.tools import tool
 
 # 1. SMART MULTI-LANGUAGE SEARCH TOOL
 def create_smart_multilang_search_tool(code_path: str = None):
-    """
-    Creates a language-aware code search tool that adapts patterns based on programming language.
-    This tool understands different languages and searches for relevant patterns automatically.
-    """
+    """Create a smart multi-language search tool."""
     @tool("smart_multilang_search")
-    def smart_multilang_search_tool(language: str, error_pattern: str, component: str = "") -> str:
-        """
-        Search code with language-specific patterns and intelligence.
+    def smart_multilang_search_tool(language: str, error_pattern: str, component: str = "", code_path: str = None) -> str:
+        """Search for error patterns across multiple programming languages.
         
         Args:
-            language: Programming language (go, python, java, javascript, rust, c, csharp)
-            error_pattern: Error pattern to search for (nil_pointer, attribute_error, null_exception, etc.)
-            component: Optional component/module name (user, auth, api, database, etc.)
+            language: Programming language to search in (python, javascript, java, etc.)
+            error_pattern: Error pattern to search for
+            component: Optional component name to narrow search
+            code_path: Optional code path (if not provided, will use default or extracted path)
             
         Returns:
-            String containing found code patterns with file locations and relevant code snippets
+            String containing search results
         """
+        # Use provided code_path or fall back to default
+        effective_code_path = code_path or ""
+        
+        # Check cache
+        cache_key = f"smart_search_{language}_{error_pattern}_{component}_{effective_code_path}"
+        if cache_key in _code_analysis_cache:
+            return f"[CACHED RESULT] {_code_analysis_cache[cache_key]}"
+        
+        if not effective_code_path or not os.path.exists(effective_code_path):
+            result = "No valid code path provided."
+            _code_analysis_cache[cache_key] = result
+            return result
         
         try:
-            print(f"[DEBUG] Smart multilang search: {language} | {error_pattern} | {component}")
-            
-            # LANGUAGE-SPECIFIC CONFIGURATIONS
-            language_config = {
-                'go': {
-                    'extensions': ['.go'],
-                    'patterns': {
-                        'nil_pointer': ['nil', '*', 'pointer', 'dereference', 'struct', 'interface{}'],
-                        'panic': ['panic', 'recover', 'runtime.Error', 'defer'],
-                        'goroutine': ['goroutine', 'channel', 'go func', 'sync.', 'mutex'],
-                        'interface': ['interface{}', 'type assertion', '.(', 'switch.*type'],
-                        'slice': ['make([]', 'append(', '[:]', 'len(', 'cap('],
-                        'error': ['error', 'fmt.Errorf', 'errors.New', 'if err != nil']
-                    },
-                    'keywords': ['func', 'type', 'struct', 'interface', 'package', 'import']
-                },
-                'python': {
-                    'extensions': ['.py'],
-                    'patterns': {
-                        'none': ['None', 'is None', 'is not None', 'AttributeError'],
-                        'attribute_error': ['AttributeError', 'hasattr', 'getattr', 'setattr'],
-                        'import': ['import', 'from', 'ImportError', 'ModuleNotFoundError'],
-                        'type_error': ['TypeError', 'isinstance', 'type(', '__class__'],
-                        'key_error': ['KeyError', '.get(', '.keys()', '.items()'],
-                        'async': ['async', 'await', 'asyncio', 'coroutine']
-                    },
-                    'keywords': ['def', 'class', 'import', 'from', 'try', 'except']
-                },
-                'java': {
-                    'extensions': ['.java'],
-                    'patterns': {
-                        'null_pointer': ['null', 'NullPointerException', 'Objects.isNull', 'Optional'],
-                        'exception': ['Exception', 'try', 'catch', 'finally', 'throw'],
-                        'class_not_found': ['ClassNotFoundException', 'Class.forName', 'classLoader'],
-                        'array_bounds': ['ArrayIndexOutOfBoundsException', '.length', 'Arrays.'],
-                        'concurrent': ['ConcurrentModificationException', 'synchronized', 'volatile']
-                    },
-                    'keywords': ['public', 'private', 'class', 'interface', 'extends', 'implements']
-                },
-                'javascript': {
-                    'extensions': ['.js', '.ts', '.jsx', '.tsx'],
-                    'patterns': {
-                        'undefined': ['undefined', 'null', 'TypeError', '?.', '??'],
-                        'reference_error': ['ReferenceError', 'is not defined', 'let', 'const', 'var'],
-                        'promise': ['Promise', 'async', 'await', '.then', '.catch', '.finally'],
-                        'callback': ['callback', 'function(', '=>', 'addEventListener'],
-                        'dom': ['document', 'element', 'getElementById', 'querySelector']
-                    },
-                    'keywords': ['function', 'const', 'let', 'var', 'class', 'import', 'export']
-                },
-                'rust': {
-                    'extensions': ['.rs'],
-                    'patterns': {
-                        'panic': ['panic!', 'unwrap()', 'expect(', 'Result', 'Option'],
-                        'option': ['Option', 'Some(', 'None', 'unwrap_or', 'map('],
-                        'result': ['Result', 'Ok(', 'Err(', 'match', '?'],
-                        'borrow': ['borrow', '&mut', '&', 'RefCell', 'Rc']
-                    },
-                    'keywords': ['fn', 'struct', 'enum', 'impl', 'trait', 'use']
-                },
-                'c': {
-                    'extensions': ['.c', '.cpp', '.h', '.hpp'],
-                    'patterns': {
-                        'segfault': ['NULL', 'segmentation fault', 'malloc', 'free', 'pointer'],
-                        'memory': ['malloc', 'calloc', 'realloc', 'free', 'memcpy'],
-                        'undefined': ['undefined reference', 'undefined symbol', 'extern'],
-                        'buffer': ['buffer overflow', 'strcpy', 'strcat', 'gets']
-                    },
-                    'keywords': ['#include', 'int', 'char', 'void', 'struct', 'typedef']
-                }
+            # Determine file extensions for the language
+            extensions = {
+                'python': ['.py'],
+                'javascript': ['.js', '.jsx', '.ts', '.tsx'],
+                'java': ['.java'],
+                'go': ['.go'],
+                'rust': ['.rs'],
+                'php': ['.php'],
+                'ruby': ['.rb'],
+                'csharp': ['.cs'],
+                'cpp': ['.cpp', '.cc', '.cxx', '.hpp', '.h'],
+                'c': ['.c', '.h'],
+                'swift': ['.swift'],
+                'kotlin': ['.kt'],
+                'scala': ['.scala'],
+                'clojure': ['.clj', '.cljs'],
+                'haskell': ['.hs'],
+                'ocaml': ['.ml', '.mli'],
+                'fsharp': ['.fs', '.fsi'],
+                'vb': ['.vb'],
+                'perl': ['.pl', '.pm'],
+                'shell': ['.sh', '.bash'],
+                'sql': ['.sql']
             }
             
-            # Get language configuration
-            lang_config = language_config.get(language.lower(), language_config.get('javascript', {}))  # Default to JavaScript patterns
-            extensions = lang_config['extensions']
-            patterns = lang_config['patterns']
-            keywords = lang_config['keywords']
+            search_extensions = extensions.get(language.lower(), [])
+            if not search_extensions:
+                result = f"Unsupported language: {language}"
+                _code_analysis_cache[cache_key] = result
+                return result
             
-            # Get search terms for the error pattern
-            search_terms = patterns.get(error_pattern, [error_pattern])
+            # Build search terms
+            search_terms = [error_pattern]
             if component:
                 search_terms.append(component)
             
-            print(f"[DEBUG] Using extensions: {extensions}")
-            print(f"[DEBUG] Search terms: {search_terms}")
-            
-            # SMART FILE DISCOVERY
+            # Search for files with matching extensions
             found_files = []
-            file_count = 0
-            
-            for root, dirs, files in os.walk(code_path):
-                # Skip common non-source directories
-                dirs[:] = [d for d in dirs if d not in ['.git', '__pycache__', 'node_modules', 'target', 'build', 'dist']]
-                
+            for root, dirs, files in os.walk(effective_code_path):
                 for file in files:
-                    if any(file.endswith(ext) for ext in extensions):
+                    if any(file.endswith(ext) for ext in search_extensions):
                         file_path = os.path.join(root, file)
-                        file_count += 1
-                        
                         try:
                             with open(file_path, 'r', encoding='utf-8', errors='ignore') as f:
                                 content = f.read()
-                                
-                                # INTELLIGENT PATTERN MATCHING
-                                matches = []
-                                lines = content.split('\n')
-                                
-                                for i, line in enumerate(lines):
-                                    line_lower = line.lower()
-                                    
-                                    # Check if any search terms are in the line
-                                    for term in search_terms:
-                                        if term.lower() in line_lower:
-                                            # Add context around the match
-                                            start_line = max(0, i - 1)
-                                            end_line = min(len(lines), i + 2)
-                                            context_lines = lines[start_line:end_line]
-                                            
-                                            matches.append({
-                                                'line_num': i + 1,
-                                                'line': line.strip(),
-                                                'context': context_lines,
-                                                'term': term
-                                            })
-                                            break  # One match per line is enough
-                                
-                                # If we found matches, include this file
-                                if matches:
-                                    found_files.append({
-                                        'file': file_path,
-                                        'matches': matches[:5],  # Top 5 matches per file
-                                        'relevance': len(matches)
-                                    })
-                                    
-                        except Exception as e:
-                            print(f"[DEBUG] Error reading {file_path}: {e}")
+                                # Check if any search term is in the content
+                                if any(term.lower() in content.lower() for term in search_terms):
+                                    found_files.append(file_path)
+                        except Exception:
                             continue
-                
-                # Limit total files processed for performance
-                if len(found_files) >= 10:
-                    break
             
-            # GENERATE RESULTS
-            if found_files:
-                # Sort by relevance (number of matches)
-                found_files.sort(key=lambda x: x['relevance'], reverse=True)
-                
-                result = f"🔍 SMART {language.upper()} CODE SEARCH RESULTS\n\n"
-                result += f"Pattern: '{error_pattern}' | Component: '{component}'\n"
-                result += f"Searched: {file_count} {language} files\n"
-                result += f"Found: {len(found_files)} relevant files\n\n"
-                
-                for i, file_info in enumerate(found_files[:5], 1):  # Top 5 files
-                    file_path = file_info['file']
-                    matches = file_info['matches']
-                    
-                    result += f"📁 {i}. {file_path} ({file_info['relevance']} matches)\n"
-                    
-                    for match in matches[:3]:  # Top 3 matches per file
-                        result += f"   Line {match['line_num']}: {match['line']}\n"
-                        if len(match['context']) > 1:
-                            result += f"   Context: {match['context'][0].strip()}\n"
-                    result += "\n"
-                
-                # Add analysis summary
-                all_matches = [match for file_info in found_files for match in file_info['matches']]
-                common_terms = Counter([match['term'] for match in all_matches])
-                
-                result += f"📊 PATTERN ANALYSIS:\n"
-                result += f"Most common patterns: {dict(common_terms.most_common(3))}\n"
-                result += f"Files to focus on: {[f['file'] for f in found_files[:3]]}\n"
-                
+            if not found_files:
+                result = f"No files found containing '{error_pattern}' in {language} code."
+                _code_analysis_cache[cache_key] = result
                 return result
-            else:
-                return f"No specific {language} code patterns found for '{error_pattern}'. Recommend checking:\n" \
-                       f"- Main {language} files ({', '.join(extensions)})\n" \
-                       f"- Configuration files\n" \
-                       f"- {component} related modules if specified\n" \
-                       f"Proceeding with {language}-specific pattern analysis."
+            
+            # Format results
+            results = [f"🔍 SMART SEARCH RESULTS"]
+            results.append(f"Language: {language}")
+            results.append(f"Error Pattern: {error_pattern}")
+            if component:
+                results.append(f"Component: {component}")
+            results.append(f"Files Found: {len(found_files)}")
+            results.append("")
+            
+            for i, file_path in enumerate(found_files[:10], 1):  # Limit to first 10
+                results.append(f"📄 FILE #{i}: {file_path}")
                 
+                # Extract relevant lines
+                try:
+                    with open(file_path, 'r', encoding='utf-8', errors='ignore') as f:
+                        lines = f.readlines()
+                    
+                    relevant_lines = []
+                    for line_num, line in enumerate(lines, 1):
+                        if any(term.lower() in line.lower() for term in search_terms):
+                            relevant_lines.append(f"  Line {line_num}: {line.strip()}")
+                            if len(relevant_lines) >= 5:  # Limit to 5 relevant lines per file
+                                break
+                    
+                    if relevant_lines:
+                        results.extend(relevant_lines)
+                    results.append("")
+                    
+                except Exception:
+                    results.append("  [Error reading file]")
+                    results.append("")
+            
+            if len(found_files) > 10:
+                results.append(f"... and {len(found_files) - 10} more files")
+            
+            result = "\n".join(results)
+            _code_analysis_cache[cache_key] = result
+            return result
+            
         except Exception as e:
-            return f"Smart {language} search unavailable: {str(e)}. Using {language}-specific pattern analysis for '{error_pattern}' issues."
+            result = f"Error in smart search: {str(e)}"
+            _code_analysis_cache[cache_key] = result
+            return result
     
     return smart_multilang_search_tool
 
 # 2. DIRECTORY LANGUAGE ANALYZER TOOL
 def create_directory_language_analyzer_tool(code_path: str = None):
-    """
-    Creates a directory analyzer that detects languages and finds relevant files for any error category.
-    This tool provides a broad overview of the codebase and identifies focus areas.
-    """
+    """Create a directory language analyzer tool."""
     @tool("directory_language_analyzer")
-    def directory_language_analyzer_tool(error_category: str, component_hint: str = "") -> str:
-        """
-        Analyze directory structure to detect languages and find relevant files.
+    def directory_language_analyzer_tool(error_category: str, component_hint: str = "", code_path: str = None) -> str:
+        """Analyze codebase structure and find relevant files for error categories.
         
         Args:
-            error_category: Category of error (runtime, compile, auth, database, api, file, network, etc.)
-            component_hint: Hint about component (user, auth, api, upload, database, etc.)
+            error_category: Category of error (database, api, file, auth, etc.)
+            component_hint: Optional hint about the component involved
+            code_path: Optional code path (if not provided, will use default or extracted path)
             
         Returns:
-            String containing language detection results and relevant file recommendations
+            String containing directory analysis results
         """
+        # Use provided code_path or fall back to default
+        effective_code_path = code_path or ""
         
-        try:            
-            # COMPREHENSIVE LANGUAGE DETECTION
-            language_patterns = {
-                'go': {
-                    'extensions': ['.go'],
-                    'markers': ['go.mod', 'go.sum', 'main.go'],
-                    'keywords': ['package main', 'func main()', 'import (']
-                },
-                'python': {
-                    'extensions': ['.py'],
-                    'markers': ['requirements.txt', 'setup.py', 'pyproject.toml', '__init__.py'],
-                    'keywords': ['def ', 'import ', 'from ', 'class ']
-                },
-                'java': {
-                    'extensions': ['.java'],
-                    'markers': ['pom.xml', 'build.gradle', 'src/main/java'],
-                    'keywords': ['public class', 'public static void main', 'package ']
-                },
-                'javascript': {
-                    'extensions': ['.js', '.ts', '.jsx', '.tsx'],
-                    'markers': ['package.json', 'node_modules', 'tsconfig.json'],
-                    'keywords': ['function', 'const ', 'let ', 'import ']
-                },
-                'rust': {
-                    'extensions': ['.rs'],
-                    'markers': ['Cargo.toml', 'src/main.rs', 'src/lib.rs'],
-                    'keywords': ['fn ', 'struct ', 'impl ', 'use ']
-                },
-                'c_cpp': {
-                    'extensions': ['.c', '.cpp', '.h', '.hpp'],
-                    'markers': ['Makefile', 'CMakeLists.txt', 'configure'],
-                    'keywords': ['#include', 'int main(', 'void ', 'struct ']
-                }
+        # Check cache
+        cache_key = f"dir_analyzer_{error_category}_{component_hint}_{effective_code_path}"
+        if cache_key in _code_analysis_cache:
+            return f"[CACHED RESULT] {_code_analysis_cache[cache_key]}"
+        
+        if not effective_code_path or not os.path.exists(effective_code_path):
+            result = "No valid code path provided."
+            _code_analysis_cache[cache_key] = result
+            return result
+        
+        try:
+            # Define error category patterns
+            category_patterns = {
+                'database': ['db', 'database', 'sql', 'connection', 'query', 'migration'],
+                'api': ['api', 'endpoint', 'route', 'controller', 'handler', 'request'],
+                'file': ['file', 'upload', 'download', 'io', 'path', 'directory'],
+                'auth': ['auth', 'authentication', 'authorization', 'login', 'token', 'jwt'],
+                'network': ['network', 'http', 'https', 'socket', 'connection', 'timeout'],
+                'memory': ['memory', 'leak', 'allocation', 'gc', 'garbage'],
+                'config': ['config', 'configuration', 'settings', 'env', 'environment'],
+                'validation': ['validation', 'validate', 'schema', 'format', 'type'],
+                'logging': ['log', 'logging', 'debug', 'trace', 'error'],
+                'cache': ['cache', 'redis', 'memcached', 'session', 'storage']
             }
             
-            # ERROR CATEGORY TO FILE PATTERNS MAPPING
-            error_file_patterns = {
-                'runtime': ['main', 'app', 'server', 'handler', 'service'],
-                'auth': ['auth', 'login', 'user', 'session', 'token', 'security'],
-                'database': ['db', 'database', 'model', 'repository', 'dao', 'orm'],
-                'api': ['api', 'handler', 'controller', 'route', 'endpoint'],
-                'file': ['file', 'upload', 'download', 'io', 'storage'],
-                'network': ['client', 'http', 'request', 'connection', 'network'],
-                'config': ['config', 'settings', 'env', 'properties'],
-                'compile': ['build', 'compile', 'make', 'gradle', 'maven']
-            }
-            
-            # SCAN DIRECTORY STRUCTURE
-            detected_languages = defaultdict(lambda: {'files': [], 'markers': [], 'confidence': 0})
-            all_files = []
-            relevant_files = []
-            
-            for root, dirs, files in os.walk(code_path):
-                # Skip common non-source directories
-                dirs[:] = [d for d in dirs if d not in ['.git', '__pycache__', 'node_modules', 'target', 'build', 'dist', '.vscode', '.idea']]
-                
-                for file in files:
-                    file_path = os.path.join(root, file)
-                    all_files.append(file_path)
-                    
-                    # LANGUAGE DETECTION
-                    for lang, config in language_patterns.items():
-                        # Check file extensions
-                        if any(file.endswith(ext) for ext in config['extensions']):
-                            detected_languages[lang]['files'].append(file_path)
-                            detected_languages[lang]['confidence'] += 1
-                        
-                        # Check for language markers
-                        if file in config['markers']:
-                            detected_languages[lang]['markers'].append(file)
-                            detected_languages[lang]['confidence'] += 5  # Markers are stronger indicators
-                    
-                    # RELEVANCE DETECTION
-                    file_lower = file.lower()
-                    path_lower = file_path.lower()
-                    
-                    # Check for error category patterns
-                    category_patterns = error_file_patterns.get(error_category, [error_category])
-                    if any(pattern in file_lower or pattern in path_lower for pattern in category_patterns):
-                        relevant_files.append(file_path)
-                    
-                    # Check for component hint
-                    if component_hint and (component_hint.lower() in file_lower or component_hint.lower() in path_lower):
-                        relevant_files.append(file_path)
-            
-            # DETERMINE PRIMARY LANGUAGE
-            if detected_languages:
-                primary_lang = max(detected_languages.keys(), key=lambda k: detected_languages[k]['confidence'])
-            else:
-                primary_lang = 'unknown'
-            
-            # GENERATE ANALYSIS RESULTS
-            result = f"🌐 DIRECTORY LANGUAGE ANALYSIS\n\n"
-            
-            # Language Detection Results
-            result += f"📊 DETECTED LANGUAGES:\n"
-            sorted_langs = sorted(detected_languages.items(), key=lambda x: x[1]['confidence'], reverse=True)
-            
-            for lang, info in sorted_langs[:5]:  # Top 5 languages
-                file_count = len(info['files'])
-                markers = info['markers']
-                confidence = info['confidence']
-                
-                result += f"  {lang.upper()}: {file_count} files (confidence: {confidence})\n"
-                if markers:
-                    result += f"    Markers: {', '.join(markers)}\n"
-            
-            result += f"\n🎯 PRIMARY LANGUAGE: {primary_lang.upper()}\n\n"
-            
-            # Relevant Files for Error Category
-            if relevant_files:
-                # Remove duplicates and limit results
-                unique_relevant = list(set(relevant_files))[:15]
-                
-                result += f"📁 RELEVANT FILES FOR '{error_category.upper()}' ERRORS:\n"
-                
-                # Group by language if possible
-                lang_files = defaultdict(list)
-                for file_path in unique_relevant:
-                    file_lang = 'other'
-                    for lang, config in language_patterns.items():
-                        if any(file_path.endswith(ext) for ext in config['extensions']):
-                            file_lang = lang
-                            break
-                    lang_files[file_lang].append(file_path)
-                
-                for lang, files in lang_files.items():
-                    if files:
-                        result += f"\n  {lang.upper()} files:\n"
-                        for file_path in files[:5]:  # Top 5 per language
-                            result += f"    - {file_path}\n"
-            else:
-                result += f"📁 NO SPECIFIC FILES FOUND for '{error_category}'\n"
-                result += f"   Recommend checking main {primary_lang} files and configuration\n"
-            
-            # Recommendations
-            result += f"\n💡 ANALYSIS RECOMMENDATIONS:\n"
-            
-            if primary_lang != 'unknown':
-                config = language_patterns[primary_lang]
-                result += f"  1. Focus on {primary_lang.upper()} files with extensions: {', '.join(config['extensions'])}\n"
-                result += f"  2. Check {primary_lang} project markers: {', '.join(config['markers'])}\n"
-            
+            search_terms = category_patterns.get(error_category.lower(), [error_category])
             if component_hint:
-                result += f"  3. Search for '{component_hint}' in file names and directory structure\n"
+                search_terms.append(component_hint)
             
-            result += f"  4. For '{error_category}' errors, examine: {', '.join(error_file_patterns.get(error_category, [error_category]))}\n"
+            # Find relevant files
+            relevant_files = []
+            for root, dirs, files in os.walk(effective_code_path):
+                for file in files:
+                    if file.endswith(('.py', '.js', '.ts', '.java', '.go', '.rs', '.php', '.rb', '.cs', '.cpp', '.c')):
+                        file_path = os.path.join(root, file)
+                        try:
+                            with open(file_path, 'r', encoding='utf-8', errors='ignore') as f:
+                                content = f.read()
+                                # Check if any search term is in the content
+                                if any(term.lower() in content.lower() for term in search_terms):
+                                    relevant_files.append(file_path)
+                        except Exception:
+                            continue
             
-            # Statistics
-            total_files = len(all_files)
-            result += f"\n📈 STATISTICS:\n"
-            result += f"  Total files scanned: {total_files}\n"
-            result += f"  Languages detected: {len(detected_languages)}\n"
-            result += f"  Relevant files found: {len(set(relevant_files))}\n"
+            if not relevant_files:
+                result = f"No relevant files found for error category '{error_category}'."
+                _code_analysis_cache[cache_key] = result
+                return result
             
+            # Group files by directory
+            dir_groups = {}
+            for file_path in relevant_files:
+                dir_name = os.path.dirname(file_path)
+                if dir_name not in dir_groups:
+                    dir_groups[dir_name] = []
+                dir_groups[dir_name].append(file_path)
+            
+            # Format results
+            results = [f"📁 DIRECTORY ANALYSIS FOR '{error_category.upper()}' ERRORS"]
+            if component_hint:
+                results.append(f"Component Hint: {component_hint}")
+            results.append(f"Relevant Files Found: {len(relevant_files)}")
+            results.append(f"Directories: {len(dir_groups)}")
+            results.append("")
+            
+            for dir_name, files in sorted(dir_groups.items()):
+                results.append(f"📂 DIRECTORY: {dir_name}")
+                results.append(f"  Files: {len(files)}")
+                
+                # Show file names
+                for file_path in files[:5]:  # Limit to first 5 files per directory
+                    file_name = os.path.basename(file_path)
+                    results.append(f"    • {file_name}")
+                
+                if len(files) > 5:
+                    results.append(f"    ... and {len(files) - 5} more files")
+                results.append("")
+            
+            # Add summary
+            results.append("📊 SUMMARY:")
+            results.append(f"  Total files: {len(relevant_files)}")
+            results.append(f"  Directories: {len(dir_groups)}")
+            results.append(f"  Search terms used: {', '.join(search_terms)}")
+            
+            result = "\n".join(results)
+            _code_analysis_cache[cache_key] = result
             return result
             
         except Exception as e:
-            return f"Directory analysis unavailable: {str(e)}. Recommend manual inspection of codebase structure for {error_category} error patterns."
+            result = f"Error in directory analysis: {str(e)}"
+            _code_analysis_cache[cache_key] = result
+            return result
     
     return directory_language_analyzer_tool
 
@@ -1330,137 +1203,121 @@ def directory_analyzer(error_type: str, component: str, code_path: str = None) -
     return tool(error_type, component)      
 
 def create_error_pattern_analyzer_tool(code_path: str = None):
-    """Create a tool for analyzing error patterns without requiring a specific file path."""
+    """Create an error pattern analyzer tool."""
     @tool("analyze_error_patterns")
-    def analyze_error_patterns_tool(error_type: str, language: str = "python") -> str:
-        """Analyze error patterns in the codebase for a specific error type and language.
+    def analyze_error_patterns_tool(error_type: str, language: str = "python", code_path: str = None) -> str:
+        """Analyze error patterns in code for a specific error type and language.
         
         Args:
-            error_type: Type of error to search for (e.g., "authentication", "database", "file_access")
-            language: Programming language to focus on (defaults to python)
+            error_type: Type of error to analyze (exception, validation, etc.)
+            language: Programming language to focus on
+            code_path: Optional code path (if not provided, will use default or extracted path)
             
         Returns:
             String containing error pattern analysis
         """
+        # Use provided code_path or fall back to default
+        effective_code_path = code_path or ""
+        
         # Check cache
-        cache_key = f"error_patterns_{error_type}_{language}_{code_path}"
+        cache_key = f"error_patterns_{error_type}_{language}_{effective_code_path}"
         if cache_key in _code_analysis_cache:
             return f"[CACHED RESULT] {_code_analysis_cache[cache_key]}"
-                
-        if not code_path or not os.path.exists(code_path):
+        
+        if not effective_code_path or not os.path.exists(effective_code_path):
             result = "No valid code path provided."
             _code_analysis_cache[cache_key] = result
             return result
         
         try:
-            analyzer = CodeAnalyzer(code_path)
-            
-            # Get all source files for the specified language
-            language_extensions = {
-                'python': ['.py'],
-                'javascript': ['.js', '.ts', '.jsx', '.tsx'],
-                'java': ['.java'],
-                'go': ['.go'],
-                'rust': ['.rs'],
-                'c': ['.c', '.cpp', '.h', '.hpp']
+            # Define language-specific error patterns
+            error_patterns = {
+                'python': {
+                    'exception': ['try:', 'except', 'raise', 'Exception', 'Error'],
+                    'validation': ['assert', 'if not', 'isinstance', 'validate'],
+                    'null_check': ['if', 'is None', 'is not None', 'None'],
+                    'type_error': ['TypeError', 'isinstance', 'type(', 'str(', 'int(']
+                },
+                'javascript': {
+                    'exception': ['try', 'catch', 'throw', 'Error', 'Exception'],
+                    'validation': ['if', 'typeof', 'instanceof', 'validate'],
+                    'null_check': ['if', 'null', 'undefined', '!==', '==='],
+                    'type_error': ['TypeError', 'typeof', 'instanceof']
+                },
+                'java': {
+                    'exception': ['try', 'catch', 'throw', 'Exception', 'Error'],
+                    'validation': ['if', 'assert', 'validate', 'check'],
+                    'null_check': ['if', 'null', '!= null', '== null'],
+                    'type_error': ['ClassCastException', 'instanceof']
+                }
             }
             
-            extensions = language_extensions.get(language.lower(), ['.py'])
-            source_files = []
+            patterns = error_patterns.get(language.lower(), {}).get(error_type.lower(), [error_type])
             
-            for root, dirs, files in os.walk(code_path):
-                # Skip common non-source directories
-                dirs[:] = [d for d in dirs if d not in ['.git', '__pycache__', 'node_modules', 'target', 'build', 'dist']]
-                
+            # Find files with error patterns
+            found_files = []
+            for root, dirs, files in os.walk(effective_code_path):
                 for file in files:
-                    if any(file.endswith(ext) for ext in extensions):
-                        source_files.append(os.path.join(root, file))
+                    if file.endswith(('.py', '.js', '.ts', '.java', '.go', '.rs', '.php', '.rb', '.cs', '.cpp', '.c')):
+                        file_path = os.path.join(root, file)
+                        try:
+                            with open(file_path, 'r', encoding='utf-8', errors='ignore') as f:
+                                content = f.read()
+                                # Check if any pattern is in the content
+                                if any(pattern.lower() in content.lower() for pattern in patterns):
+                                    found_files.append(file_path)
+                        except Exception:
+                            continue
             
-            if not source_files:
-                result = f"No {language} source files found in the codebase."
-                _code_analysis_cache[cache_key] = result
-                return result
-            
-            # Analyze error patterns
-            error_patterns = []
-            for file_path in source_files[:10]:  # Limit to first 10 files for performance
-                try:
-                    with open(file_path, 'r', encoding='utf-8') as f:
-                        content = f.read()
-                    
-                    # Language-specific error pattern matching
-                    patterns = []
-                    if language.lower() == 'python':
-                        patterns = [
-                            r'try\s*:', r'except\s+\w+', r'raise\s+\w+', r'assert\s+',
-                            r'if\s+.*error', r'if\s+.*exception', r'if\s+.*fail',
-                            r'logging\.error', r'logger\.error'
-                        ]
-                    elif language.lower() in ['javascript', 'typescript']:
-                        patterns = [
-                            r'try\s*{', r'catch\s*\(', r'throw\s+', r'if\s*\(.*error',
-                            r'\.catch\(', r'Promise\.reject', r'console\.error'
-                        ]
-                    elif language.lower() == 'java':
-                        patterns = [
-                            r'try\s*{', r'catch\s*\(', r'throw\s+', r'throws\s+\w+',
-                            r'if\s*\(.*error', r'Exception', r'RuntimeException'
-                        ]
-                    elif language.lower() == 'go':
-                        patterns = [
-                            r'if\s+err\s*!=\s*nil', r'panic\(', r'recover\(\)',
-                            r'return\s+.*err', r'fmt\.Errorf'
-                        ]
-                    elif language.lower() == 'rust':
-                        patterns = [
-                            r'Result<', r'Option<', r'match\s+', r'\.unwrap\(',
-                            r'\.expect\(', r'panic!', r'if\s+.*\.is_err\('
-                        ]
-                    
-                    # Search for error patterns
-                    for pattern in patterns:
-                        matches = re.finditer(pattern, content, re.IGNORECASE)
-                        for match in matches:
-                            line_num = content[:match.start()].count('\n') + 1
-                            line_content = content.split('\n')[line_num - 1].strip()
-                            
-                            # Check if this matches the error type we're looking for
-                            if error_type.lower() in line_content.lower():
-                                error_patterns.append({
-                                    'file': file_path,
-                                    'line': line_num,
-                                    'pattern': pattern,
-                                    'content': line_content
-                                })
-                
-                except Exception as e:
-                    continue  # Skip files that can't be read
-            
-            if not error_patterns:
-                result = f"No {error_type} error patterns found in {language} files."
+            if not found_files:
+                result = f"No error patterns found for '{error_type}' in {language} code."
                 _code_analysis_cache[cache_key] = result
                 return result
             
             # Format results
-            results = [f"🔍 ERROR PATTERN ANALYSIS FOR '{error_type.upper()}' IN {language.upper()}\n"]
-            results.append(f"Found {len(error_patterns)} relevant error patterns:\n")
+            results = [f"🔍 ERROR PATTERN ANALYSIS"]
+            results.append(f"Error Type: {error_type}")
+            results.append(f"Language: {language}")
+            results.append(f"Files Found: {len(found_files)}")
+            results.append("")
             
-            for i, pattern in enumerate(error_patterns[:5], 1):  # Limit to first 5
-                results.append(f"📍 PATTERN #{i}:")
-                results.append(f"  File: {pattern['file']}:{pattern['line']}")
-                results.append(f"  Pattern: {pattern['pattern']}")
-                results.append(f"  Content: {pattern['content']}")
-                results.append("")
+            for i, file_path in enumerate(found_files[:10], 1):  # Limit to first 10
+                results.append(f"📄 FILE #{i}: {file_path}")
+                
+                # Extract relevant lines
+                try:
+                    with open(file_path, 'r', encoding='utf-8', errors='ignore') as f:
+                        lines = f.readlines()
+                    
+                    relevant_lines = []
+                    for line_num, line in enumerate(lines, 1):
+                        if any(pattern.lower() in line.lower() for pattern in patterns):
+                            relevant_lines.append(f"  Line {line_num}: {line.strip()}")
+                            if len(relevant_lines) >= 3:  # Limit to 3 relevant lines per file
+                                break
+                    
+                    if relevant_lines:
+                        results.extend(relevant_lines)
+                    results.append("")
+                    
+                except Exception:
+                    results.append("  [Error reading file]")
+                    results.append("")
             
-            if len(error_patterns) > 5:
-                results.append(f"... and {len(error_patterns) - 5} more patterns found")
+            if len(found_files) > 10:
+                results.append(f"... and {len(found_files) - 10} more files")
+            
+            # Add summary
+            results.append("📊 SUMMARY:")
+            results.append(f"  Total files: {len(found_files)}")
+            results.append(f"  Patterns searched: {', '.join(patterns)}")
             
             result = "\n".join(results)
             _code_analysis_cache[cache_key] = result
             return result
             
         except Exception as e:
-            result = f"Error analyzing error patterns: {str(e)}"
+            result = f"Error in pattern analysis: {str(e)}"
             _code_analysis_cache[cache_key] = result
             return result
     

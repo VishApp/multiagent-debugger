@@ -11,6 +11,21 @@ from crewai.tools import BaseTool
 from typing import Dict, Any, List, Optional
 
 from multiagent_debugger.utils import get_verbose_flag, create_crewai_llm, get_agent_llm_config
+from multiagent_debugger.tools.log_tools import LogAnalyzer, AnalysisMode
+
+# Add this helper function to filter out log files
+SOURCE_CODE_EXTENSIONS = [
+    '.py', '.go', '.js', '.ts', '.java', '.cpp', '.c', '.rs', '.php', '.rb', '.cs', '.swift', '.kt', '.scala', '.clj', '.hs', '.ml', '.fs', '.vb', '.pl', '.sh', '.sql', '.html', '.css', '.xml', '.json', '.yaml', '.yml', '.toml', '.ini', '.cfg', '.conf', '.md', '.txt'
+]
+
+def is_source_code_file(path: str) -> bool:
+    path = path.lower()
+    if path.endswith('.log'):
+        return False
+    for ext in SOURCE_CODE_EXTENSIONS:
+        if path.endswith(ext):
+            return True
+    return False
 
 class LogAgent:
     """Agent that analyzes logs to find relevant information about API failures."""
@@ -35,11 +50,35 @@ class LogAgent:
         else:
             self.log_paths = config.get("log_paths", [])
         
-        # Get code path from config for validation
-        if hasattr(config, 'code_path'):
-            self.code_path = config.code_path
+        # Get analysis mode and parameters
+        self.analysis_mode = AnalysisMode.FREQUENT  # Default to frequent
+        
+        # Handle both dict and DebuggerConfig objects
+        if hasattr(config, 'time_window_hours'):
+            self.time_window_hours = config.time_window_hours
+        elif hasattr(config, 'get'):
+            self.time_window_hours = config.get("time_window_hours", 24)
         else:
-            self.code_path = config.get("code_path", "")
+            self.time_window_hours = 24
+            
+        if hasattr(config, 'max_lines'):
+            self.max_lines = config.max_lines
+        elif hasattr(config, 'get'):
+            self.max_lines = config.get("max_lines", 10000)
+        else:
+            self.max_lines = 10000
+        
+        # Override with mode if specified
+        if hasattr(config, 'analysis_mode'):
+            try:
+                self.analysis_mode = AnalysisMode(config.analysis_mode)
+            except ValueError:
+                pass  # Use default
+        elif hasattr(config, 'get') and 'analysis_mode' in config:
+            try:
+                self.analysis_mode = AnalysisMode(config['analysis_mode'])
+            except ValueError:
+                pass  # Use default
         
     def create_agent(self, tools: List = None) -> Agent:
         """Create and return the CrewAI agent.
@@ -59,146 +98,82 @@ class LogAgent:
         
         try:
             agent = Agent(
-        role="Digital Forensics Expert & Log Storyteller",
-        goal="Transform log analysis into compelling digital detective work with creative evidence presentation",
-        backstory="You are a digital forensics expert who treats log files like crime scene evidence. You love uncovering hidden patterns and telling the story of what happened through creative log analysis. You think like a cyber detective who can read between the lines of log entries and find the smoking gun in the digital evidence.",
+                role="Log Analysis Expert",
+                goal="Extract code paths and error patterns from logs for debugging",
+                backstory="You are a log analysis expert who extracts code paths, line numbers, and function names from error logs.",
                 verbose=verbose,
                 allow_delegation=False,
                 tools=tools or [],
-                llm=llm,  # Pass the CrewAI LLM object
-                max_iter=1,  # Reduced from 3 to 1 for efficiency
-                memory=False,  # Disable individual agent memory, use crew-level memory instead
+                llm=llm,
+                max_iter=1,
+                memory=False,
                 instructions="""
-        EFFICIENT LOG INVESTIGATION (MAX 3 TOOL CALLS):
-        
-        Use the search strategy from Question Analyzer to target your investigation.
-        
-        TOOL USAGE STRATEGY (BASED ON ANALYSIS TYPE):
-        
-        PATTERN ANALYSIS (for "common errors", "frequent errors"):
-        STEP 1: ERROR PATTERN ANALYSIS
-        ✅ analyze_error_patterns([time_window_hours])
-        Example: analyze_error_patterns(24)
-        
-        STEP 2: DETAILED PATTERN BREAKDOWN (if patterns found)
-        ✅ filter_logs("ERROR", [time_hours], "")
-        Example: filter_logs("ERROR", 24, "")
-        
-        RECENT SEARCH (for "latest error", "last error"):
-        STEP 1: PRIMARY EVIDENCE SEARCH
-        ✅ grep_logs("[primary_search_term]", 2, false, false, [time_hours], true)
-        Example: grep_logs("Invalid token", 2, false, false, 24, true)
-        
-        STEP 2: DETAILED ANALYSIS (Only if Step 1 found evidence)
-        ✅ filter_logs("[error_level]", [time_hours], "")
-        Example: filter_logs("ERROR", 4, "")
-        
-        COMPREHENSIVE SEARCH (for "all errors", "show errors"):
-        STEP 1: BROAD ERROR SEARCH
-        ✅ grep_logs("error", 2, false, false, [time_hours], true)
-        
-        STEP 2: ERROR LEVEL FILTERING
-        ✅ filter_logs("ERROR", [time_hours], "")
-        
-        STEP 3: STACK TRACE EXTRACTION (if exceptions found)
-        ✅ extract_stack_traces("[exception_type]")
-        Example: extract_stack_traces("RuntimeError")
-        
-        EFFICIENCY RULES:
-        - If grep_logs returns "No matches found" → try secondary search term once, then stop
-        - If filter_logs fails → skip and continue with available info
-        - Always provide analysis even if tools return limited results
-        
-        📋 OUTPUT TEMPLATE (STRUCTURED JSON):
-        
-        {
-          "log_investigation": {
-            "analysis_type": "[pattern_analysis|recent_search|comprehensive_search]",
-            "primary_evidence": "[Key findings from tool search]",
-            "error_patterns": {
-              "total_patterns": "[number]",
-              "most_common": "[pattern with highest frequency]",
-              "frequency_distribution": "[summary of pattern frequencies]"
-            },
-            "error_timeline": {
-              "first_occurrence": "[timestamp]",
-              "pattern": "[frequency - single/recurring/periodic]",
-              "last_occurrence": "[timestamp]"
-            },
-            "supporting_evidence": "[Additional context from filter_logs or stack traces]",
-            "code_path": "[extracted file path from stack trace or error message] OR null",
-            "function_name": "[extracted function name if available]",
-            "line_number": "[extracted line number if available]"
-          },
-          "config_validation": {
-            "code_path_found": true/false,
-            "in_config_yaml": true/false,
-            "config_issues": [
-              "Missing import in config.yaml",
-              "Incorrect path reference",
-              "Disabled module"
-            ],
-            "config_recommendations": [
-              "Add module to config.yaml",
-              "Update path reference",
-              "Enable module in config"
-            ]
-          },
-          "next_agent": "code_path_analyzer" OR "root_cause_analyzer"
-        }
-        
-        CONDITIONAL FLOW LOGIC:
-        - If code_path is found in logs (not null), set next_agent to "code_path_analyzer"
-        - If code_path is null or not found, set next_agent to "root_cause_analyzer"
-        - This determines which agent will be called next in the flow
-        
-        CONFIG VALIDATION INSTRUCTIONS:
-        After extracting the code_path from logs, check if it's properly listed in config.yaml:
-        1. Look for config.yaml files in the project root (self.config.code_path)
-        2. Check if the code_path (or its module) is referenced in config
-        3. Report any missing imports or configuration issues
-        4. Provide specific recommendations for fixing config issues
-        
-        CONFIG CHECK PROCESS:
-        - If you find a code_path in the logs, validate it against config.yaml
-        - Check if the module/file is properly imported or referenced
-        - Look for patterns like: imports, modules, paths, actions, cron jobs
-        - If not found, suggest adding it to config.yaml
-        - If found but disabled, suggest enabling it
-        
-        CRITICAL RULES:
-        - NEVER use example file names like "dataProcessor.js", "base_tm_action.py", etc.
-        - ONLY report files and functions that actually appear in your log search results
-        - If no specific files are found, set code_path to null
-        - If grep_logs returns "No matches found", report that truthfully
-        - Always use real data from your actual log files, never example data
-        - Always provide structured JSON output
-        - Be explicit about missing or uncertain data
-        
-        EXAMPLE OUTPUT (using real data only):
-        {
-          "log_investigation": {
-            "primary_evidence": "[Report actual findings from grep_logs - if no matches, say 'No matches found']",
-            "error_timeline": {
-              "first_occurrence": "[Use actual timestamps from your logs, or 'Timeline not available']",
-              "pattern": "[single/recurring/periodic]",
-              "last_occurrence": "[Use actual timestamps from your logs, or 'Timeline not available']"
-            },
-            "supporting_evidence": "[Real evidence from your logs]",
-            "code_path": "[Only if actually found in logs, otherwise null]",
-            "function_name": "[Only if actually found in logs, otherwise null]",
-            "line_number": "[Only if actually found in logs, otherwise null]"
-          },
-          "config_validation": {
-            "code_path_found": true/false,
-            "in_config_yaml": true/false,
-            "config_issues": ["Real config issues found"],
-            "config_recommendations": ["Real config fixes needed"]
-          },
-          "next_agent": "code_path_analyzer" OR "root_cause_analyzer"
-        }
-        """
-    )
+                Extract code paths and error information from logs:
+                
+                1. Code path extraction from stack traces and error messages
+                2. Line number and function name identification
+                3. Error pattern analysis and timeline
+                4. Decision on whether code analysis is needed
+                
+                OUTPUT FORMAT (JSON):
+                {
+                  "log_analysis": {
+                    "analysis_type": "[pattern_analysis|recent_search|comprehensive_search]",
+                    "primary_evidence": "[Key findings from log search]",
+                    "error_patterns": {
+                      "total_patterns": "[number]",
+                      "most_common": "[pattern with highest frequency]",
+                      "frequency_distribution": "[summary of pattern frequencies]"
+                    },
+                    "error_timeline": {
+                      "first_occurrence": "[timestamp]",
+                      "pattern": "[frequency - single/recurring/periodic]",
+                      "last_occurrence": "[timestamp]"
+                    },
+                    "supporting_evidence": "[Additional context from filter_logs]"
+                  },
+                  "code_path_extraction": {
+                    "extracted_code_paths": [
+                      {
+                        "file_path": "/full/path/to/file.ext",
+                        "line_number": 123,
+                        "function_name": "function_name",
+                        "error_context": "[error message or stack trace line]",
+                        "timestamp": "[when this error occurred]",
+                        "confidence": "[high|medium|low]"
+                      }
+                    ],
+                    "most_recent_error": {
+                      "file_path": "/path/to/most/recent/file.ext",
+                      "line_number": 456,
+                      "function_name": "recent_function",
+                      "error_message": "[the actual error message]",
+                      "timestamp": "[most recent timestamp]"
+                    },
+                    "extraction_quality": "[high|medium|low] - based on clarity of stack traces"
+                  },
+                  "code_analysis_decision": {
+                    "should_analyze_code": true/false,
+                    "reason": "[why code analysis is needed or not]",
+                    "target_file": "/path/to/analyze.ext",
+                    "target_line": 123,
+                    "target_function": "function_name",
+                    "code_path": "/directory/containing/the/file"
+                  }
+                }
+                
+                DECISION LOGIC:
+                - If code paths found: set should_analyze_code = true and provide code_path
+                - If no code paths found: set should_analyze_code = false
+                - The code_path should be the directory containing the target file
+                
+                RULES:
+                - Extract source code file paths from log content, not log file names
+                - Look for stack traces with file paths and line numbers
+                - Prioritize the most recent error for analysis
+                - Be explicit about missing or uncertain data
+                """
+            )
             return agent
         except Exception as e:
             import traceback
@@ -226,6 +201,82 @@ class LogAgent:
             results["summary"] = "No log paths provided."
             return results
     
+    def extract_code_paths(self) -> dict:
+        """
+        Extract code paths and line numbers from log content using intelligent analysis.
+        Returns a dict suitable for the code_path_extraction section with smart routing.
+        """
+        analyzer = LogAnalyzer(
+            self.log_paths, 
+            mode=self.analysis_mode,
+            time_window_hours=self.time_window_hours,
+            max_lines=self.max_lines
+        )
+        
+        # Use intelligent analysis
+        analysis = analyzer.analyze_errors_intelligent()
+        
+        # Extract code paths from patterns and latest errors
+        extracted_code_paths = []
+        most_recent_error = {}
+        
+        # Process patterns (frequent errors)
+        for pattern in analysis['patterns']:
+            if pattern.signature.code_path:
+                extracted_code_paths.append({
+                    "file_path": pattern.signature.code_path,
+                    "line_number": pattern.signature.line_number,
+                    "function_name": pattern.signature.function_name,
+                    "error_context": pattern.pattern,
+                    "timestamp": pattern.last_occurrence.isoformat() if pattern.last_occurrence else None,
+                    "confidence": "high",
+                    "frequency": pattern.count,
+                    "frequency_score": pattern.frequency_score
+                })
+        
+        # Process latest unique errors (new/critical errors)
+        for error in analysis['latest_unique_errors']:
+            if error.error_signature and error.error_signature.code_path:
+                # Check if this code path is already in extracted_code_paths
+                existing = any(cp["file_path"] == error.error_signature.code_path for cp in extracted_code_paths)
+                if not existing:
+                    extracted_code_paths.append({
+                        "file_path": error.error_signature.code_path,
+                        "line_number": error.error_signature.line_number,
+                        "function_name": error.error_signature.function_name,
+                        "error_context": error.message,
+                        "timestamp": error.timestamp.isoformat() if error.timestamp else None,
+                        "confidence": "high",
+                        "frequency": 1,
+                        "frequency_score": 0.1  # Lower score for new errors
+                    })
+        
+        # Set most recent error for routing
+        if extracted_code_paths:
+            # Sort by frequency score and timestamp
+            extracted_code_paths.sort(key=lambda x: (x.get('frequency_score', 0), x.get('timestamp', '')), reverse=True)
+            most_recent = extracted_code_paths[0]
+            most_recent_error = {
+                "file_path": most_recent["file_path"],
+                "line_number": most_recent["line_number"],
+                "function_name": most_recent["function_name"],
+                "error_message": most_recent["error_context"],
+                "timestamp": most_recent["timestamp"]
+            }
+        
+        return {
+            "extracted_code_paths": extracted_code_paths,
+            "most_recent_error": most_recent_error,
+            "extraction_quality": "high" if extracted_code_paths else "low",
+            "analysis_summary": {
+                "total_errors": analysis['total_errors'],
+                "unique_patterns": len(analysis['patterns']),
+                "latest_unique_errors": len(analysis['latest_unique_errors']),
+                "time_window_hours": analysis['time_window_hours'],
+                "analysis_mode": analysis['analysis_mode']
+            }
+        }
+
     def validate_code_path_in_config(self, code_path: str) -> Dict[str, Any]:
         """Check if the code path is properly listed in config.yaml.
         
@@ -250,64 +301,13 @@ class LogAgent:
         
         # Look for config.yaml files in the project
         config_files = []
-        if self.code_path:
-            project_root = Path(self.code_path)
-            config_patterns = ["config.yaml", "config.yml", "app.yaml", "app.yml", "settings.yaml", "settings.yml"]
-            
-            for pattern in config_patterns:
-                config_files.extend(project_root.rglob(pattern))
+        # Note: We no longer use hardcoded code_path since we extract it from logs
+        # The code path validation is now handled dynamically based on log extraction
         
-        if not config_files:
-            result["config_issues"].append("No config.yaml files found in project")
-            result["config_recommendations"].append("Check if config.yaml exists in project root")
-            return result
-        
-        # Check each config file for the code path
-        for config_file in config_files:
-            try:
-                with open(config_file, 'r', encoding='utf-8') as f:
-                    content = f.read()
-                    
-                    # Extract relative path from absolute path
-                    try:
-                        relative_path = Path(code_path).relative_to(project_root)
-                        relative_path_str = str(relative_path)
-                    except ValueError:
-                        # If not relative to project, use filename
-                        relative_path_str = Path(code_path).name
-                    
-                    # Check if the path is referenced in config
-                    if relative_path_str in content:
-                        result["in_config_yaml"] = True
-                        result["config_recommendations"].append(f"Code path found in {config_file.name}")
-                        break
-                    
-                    # Check for module/import patterns
-                    module_patterns = [
-                        f"import.*{relative_path_str}",
-                        f"from.*{relative_path_str}",
-                        f"module.*{relative_path_str}",
-                        f"path.*{relative_path_str}"
-                    ]
-                    
-                    for pattern in module_patterns:
-                        if re.search(pattern, content, re.IGNORECASE):
-                            result["in_config_yaml"] = True
-                            result["config_recommendations"].append(f"Module reference found in {config_file.name}")
-                            break
-                    
-                    if result["in_config_yaml"]:
-                        break
-                        
-            except Exception as e:
-                result["config_issues"].append(f"Error reading {config_file}: {e}")
-        
-        if not result["in_config_yaml"]:
-            result["config_issues"].append(f"Code path '{relative_path_str}' not found in any config files")
-            result["config_recommendations"].append(f"Add '{relative_path_str}' to config.yaml")
-            result["config_recommendations"].append("Check if module is properly imported/configured")
-        
-        return result
+        return {
+            "config_files_found": config_files,
+            "validation_status": "dynamic_extraction_enabled"
+        }
         
         for log_path in self.log_paths:
             if not os.path.exists(log_path):

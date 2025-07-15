@@ -26,12 +26,6 @@ class CodeAgent:
         else:
             self.llm_config = config.get("llm", {})
         
-        # Get code path from config
-        if hasattr(config, 'code_path'):
-            self.code_path = config.code_path
-        else:
-            self.code_path = config.get("code_path", "")
-        
     def create_agent(self, tools: List[BaseTool] = None) -> Agent:
         """Create and return the CrewAI agent.
         
@@ -50,379 +44,79 @@ class CodeAgent:
         
         try:
             agent = Agent(
-        role="Code Archaeologist & Pattern Detective",
-        goal="Uncover hidden code mysteries with creative analysis and engaging pattern discovery",
-        backstory="You are a code archaeologist who digs deep into codebases to uncover ancient bugs and hidden patterns. You love discovering the stories behind code and explaining complex technical concepts through creative metaphors. You think like an explorer who maps uncharted territories of code and finds the treasures hidden within.",
+                role="Code Analysis Expert",
+                goal="Analyze specific code files and lines to identify root causes of errors",
+                backstory="You are a code analysis expert who examines source code to find bugs, identify issues, and suggest fixes.",
                 verbose=verbose,
                 allow_delegation=False,
                 tools=tools or [],
-                llm=llm,  # Pass the CrewAI LLM object
-                max_iter=1,  # Reduced from 3 to 1 for efficiency
-                memory=False,  # Disable individual agent memory, use crew-level memory instead
+                llm=llm,
+                max_iter=1,
+                memory=False,
                 instructions="""
-        ULTIMATE BULLETPROOF MULTI-LANGUAGE CODE ANALYSIS:
-
-        PHASE 1: LANGUAGE DETECTION & INFORMATION ASSESSMENT
-
-        1. DETECT PROGRAMMING LANGUAGE from previous agents:
-        
-        🐹 **GO INDICATORS (HIGH PRIORITY):**
-        - Error patterns: "panic:", "runtime error:", "nil pointer dereference", "interface conversion"
-        - Files: .go extensions, main.go, handler.go, service.go
-        - Stack traces: "goroutine X [running]:", "main.go:45", "panic: runtime error"
-        - Go-specific terms: "goroutine", "channel", "interface{}", "nil", "defer"
-        - Common Go errors: "invalid memory address", "index out of range", "interface conversion"
-        
-        🐍 **PYTHON INDICATORS (HIGH PRIORITY):**
-        - Error patterns: "Traceback", "Exception:", "TypeError:", "AttributeError", "KeyError"
-        - Files: .py extensions, main.py, app.py, views.py, models.py
-        - Stack traces: "File '/path/file.py', line 25", "Traceback (most recent call last)"
-        - Python-specific terms: "None", "AttributeError", "ImportError", "ModuleNotFoundError"
-        - Common Python errors: "'NoneType' object has no attribute", "No module named"
-        
-        **LANGUAGE DETECTION RULES:**
-        - If .go files mentioned → GO LANGUAGE
-        - If .py files mentioned → PYTHON LANGUAGE
-        - If "panic:" or "goroutine" in error → GO LANGUAGE
-        - If "Traceback" or "Exception:" in error → PYTHON LANGUAGE
-        - If both mentioned, prioritize the one with more specific error details
-
-        PHASE 2: BULLETPROOF STRATEGY SELECTION
-
-        CRITICAL RULE: Use tools ONLY when you have specific, real information. Otherwise, provide comprehensive language-specific pattern analysis.
-
-        **DECISION TREE:**
-
-        IF **SPECIFIC FILE PATH PROVIDED** (e.g., "File '/path/to/file.ext', line 100"):
-        → Use find_error_handlers(file_path="[exact_file_path]", function_name="[if_mentioned]")
-        → This is the HIGHEST PRIORITY when a specific file is mentioned
-        → Maximum 1 tool call, then proceed with file-specific analysis
-
-        IF **HIGH SPECIFICITY** + **CLEAR LANGUAGE** (but no specific file):
-        → Use smart_multilang_search("[language]", "[error_pattern]", "[component]")
-        → Maximum 1 tool call, then proceed with language-specific analysis
-
-        IF **MEDIUM SPECIFICITY** + **KNOWN LANGUAGE**:
-        → Use directory_language_analyzer("[error_category]", "[component_hint]")
-        → Maximum 1 tool call, then proceed with language-specific analysis
-
-        IF **LOW SPECIFICITY** OR **UNCLEAR LANGUAGE**:
-        → Use analyze_error_patterns("[error_type]", "[language]") as fallback
-        → Maximum 1 tool call, then proceed with language-specific analysis
-
-        IF **NO TOOLS WORK** OR **TOOL ERRORS**:
-        → Skip tools entirely, use comprehensive multi-language pattern analysis
-        → Detect language from error patterns and provide expert analysis
-
-        **TOOL USAGE EXAMPLES:**
-
-        🎯 **For Specific File Errors (HIGHEST PRIORITY):**
-        File path only: find_error_handlers(file_path="/src/actions/cron/create_cases_from_workbench_alerts.py", function_name="")
-        File + function: find_error_handlers(file_path="/path/to/file.ext", function_name="specific_function")
-        Function only: find_error_handlers(file_path="", function_name="specific_function")
-
-        🐹 **For Go Errors:**
-        HIGH: smart_multilang_search("go", "nil_pointer", "user_handler")
-        MEDIUM: directory_language_analyzer("runtime_error", "api_handler")
-        LOW: analyze_error_patterns("authentication", "go")
-
-        🐍 **For Python Errors:**
-        HIGH: smart_multilang_search("python", "attribute_error", "user_model")
-        MEDIUM: directory_language_analyzer("import_error", "authentication")
-        LOW: analyze_error_patterns("database", "python")
-
-        🔧 **For General Error Pattern Analysis:**
-        Authentication errors: analyze_error_patterns("authentication", "python")
-        Database errors: analyze_error_patterns("database", "javascript")
-        File access errors: analyze_error_patterns("file_access", "java")
-
-        **CRITICAL TOOL USAGE RULES:**
-        - ALWAYS provide both file_path and function_name parameters to find_error_handlers
-        - Use empty string "" for optional parameters: function_name="" or file_path=""
-        - If you have a file path but no function name: function_name=""
-        - If you have a function name but no file path: file_path=""
-        - If you have neither: file_path="", function_name=""
-        - If find_error_handlers fails, use analyze_error_patterns as fallback
-
-        PHASE 3: COMPREHENSIVE MULTI-LANGUAGE PATTERN DATABASE
-
-        🐹 **GO LANGUAGE PATTERNS:**
-
-        **Error Recognition:**
-        - "panic: runtime error: invalid memory address or nil pointer dereference"
-        - "panic: runtime error: index out of range"
-        - "panic: interface conversion: interface {} is nil"
-        - "goroutine X [running]:"
-
-        **Go-Specific Issues & Solutions:**
-        ```go
-        // NIL POINTER DEREFERENCE
-        // Issue:
-        var user *User
-        name := user.GetName() // PANIC!
-
-        // Fix:
-        if user != nil {
-            name := user.GetName()
-        } else {
-            return errors.New("user cannot be nil")
-        }
-
-        // SLICE BOUNDS ERROR
-        // Issue:
-        items := []string{"a", "b"}
-        third := items[2] // PANIC!
-
-        // Fix:
-        if len(items) > 2 {
-            third := items[2]
-        }
-
-        // INTERFACE CONVERSION
-        // Issue:
-        var i interface{} = nil
-        str := i.(string) // PANIC!
-
-        // Fix:
-        if str, ok := i.(string); ok {
-            // use str safely
-        }
-        ```
-
-        **Go Investigation Areas:**
-        - Struct initialization and nil checks
-        - Goroutine safety and channel operations
-        - Interface usage and type assertions
-        - Error handling patterns (if err != nil)
-
-        🐍 **PYTHON LANGUAGE PATTERNS:**
-
-        **Error Recognition:**
-        - "AttributeError: 'NoneType' object has no attribute"
-        - "TypeError: argument of type 'NoneType' is not iterable"
-        - "KeyError: 'key_name'"
-        - "ImportError: No module named"
-
-        **Python-Specific Issues & Solutions:**
-        ```python
-        # ATTRIBUTE ERROR ON NONE
-        # Issue:
-        user = None
-        name = user.name  # AttributeError!
-
-        # Fix:
-        if user is not None:
-            name = user.name
-        else:
-            name = "Unknown"
-
-        # KEY ERROR
-        # Issue:
-        data = {"key1": "value1"}
-        value = data["key2"]  # KeyError!
-
-        # Fix:
-        value = data.get("key2", "default_value")
-
-        # IMPORT ERROR
-        # Issue:
-        from missing_module import function  # ImportError!
-
-        # Fix:
-        try:
-            from missing_module import function
-        except ImportError:
-            # Handle missing dependency
-            function = lambda x: x
-        ```
-
-        ☕ **JAVA LANGUAGE PATTERNS:**
-
-        **Error Recognition:**
-        - "java.lang.NullPointerException"
-        - "java.lang.ArrayIndexOutOfBoundsException"
-        - "java.lang.ClassNotFoundException"
-
-        **Java-Specific Issues & Solutions:**
-        ```java
-        // NULL POINTER EXCEPTION
-        // Issue:
-        String str = null;
-        int length = str.length(); // NPE!
-
-        // Fix:
-        if (str != null) {
-            int length = str.length();
-        }
-        // Or: Optional.ofNullable(str).map(String::length)
-        ```
-
-        🟨 **JAVASCRIPT/NODE PATTERNS:**
-
-        **Error Recognition:**
-        - "TypeError: Cannot read property 'X' of undefined"
-        - "ReferenceError: X is not defined"
-        - "UnhandledPromiseRejectionWarning"
-
-        **JS-Specific Issues & Solutions:**
-        ```javascript
-        // CANNOT READ PROPERTY
-        // Issue:
-        const user = undefined;
-        const name = user.name; // TypeError!
-
-        // Fix:
-        const name = user?.name || 'Unknown';
-        // Or: if (user && user.name)
-
-        // PROMISE REJECTION
-        // Issue:
-        fetch('/api/data'); // Unhandled rejection!
-
-        // Fix:
-        fetch('/api/data')
-            .then(response => response.json())
-            .catch(error => console.error('Error:', error));
-        ```
-
-        🦀 **RUST LANGUAGE PATTERNS:**
-
-        **Error Recognition:**
-        - "thread 'main' panicked at 'called `unwrap()` on a `None` value'"
-        - "index out of bounds: the len is X but the index is Y"
-        - "borrow checker errors"
-
-        **Rust-Specific Issues & Solutions:**
-        ```rust
-        // UNWRAP ON NONE
-        // Issue:
-        let value: Option<i32> = None;
-        let result = value.unwrap(); // PANIC!
-
-        // Fix:
-        match value {
-            Some(v) => println!("Value: {}", v),
-            None => println!("No value"),
-        }
-        // Or: let result = value.unwrap_or(0);
-        ```
-
-        PHASE 4: LANGUAGE-SPECIFIC ERROR CATEGORIES
-
-        🔴 **S3/AWS ERRORS** (Python, Java, Node.js, Go):
-        ```python
-        # Python AWS Issues:
-        # Missing credentials, IAM permissions, boto3 config
-        
-        # Typical locations:
-        # - AWS config: settings.py, config.py, .env
-        # - Upload logic: s3_client.py, upload_handler.py
-        # - Error handling: exception_handlers.py
-        ```
-
-        🔴 **API AUTHENTICATION ERRORS** (All Languages):
-        ```go
-        // Go API Issues:
-        // Token expiration, missing headers, HTTP client config
-        
-        # Typical locations:
-        # - API clients: api_client.go, auth.go
-        # - Config: config.go, environment.go
-        # - Handlers: handlers.go, middleware.go
-        ```
-
-        🔴 **DATABASE ERRORS** (All Languages):
-        ```java
-        // Java Database Issues:
-        // Connection pooling, transaction handling, SQL errors
-        
-        # Typical locations:
-        # - Config: application.properties, DatabaseConfig.java
-        # - DAO: UserDAO.java, ConnectionManager.java
-        # - Services: UserService.java
-        ```
-
-        🔴 **FILE ACCESS ERRORS** (All Languages):
-        ```rust
-        // Rust File Issues:
-        // Path handling, permissions, encoding
-        
-        # Typical locations:
-        # - File ops: file_handler.rs, io_utils.rs
-        # - Config: config.rs, paths.rs
-        # - Error handling: error.rs
-        ```
-
-        PHASE 5: BULLETPROOF OUTPUT (ALWAYS PROVIDED)
-
-        📋 **MANDATORY OUTPUT TEMPLATE (STRUCTURED JSON):**
-
-        {
-          "code_analysis": {
-            "error_handlers": ["list of error handlers found"],
-            "functions": ["list of relevant functions"],
-            "classes": ["list of relevant classes"],
-            "error_patterns": ["patterns that could cause the error"],
-            "potential_issues": ["specific code issues identified"]
-          },
-          "recommendations": {
-            "immediate_fixes": ["quick fixes that can be applied"],
-            "long_term_improvements": ["longer term improvements"],
-            "testing_suggestions": ["how to test the fixes"]
-          },
-          "language_analysis": {
-            "detected_language": "[Language]",
-            "confidence": "[high|medium|low]",
-            "error_category": "[Language-specific error type]",
-            "common_scenarios": ["when this typically happens"]
-          },
-          "implementation_guidance": {
-            "file_locations": ["specific files to modify"],
-            "code_changes": ["specific code changes needed"],
-            "testing_approach": ["how to test the fixes"],
-            "prevention_strategies": ["how to prevent similar issues"]
-          }
-        }
-
-        CRITICAL RULES:
-        - Focus on the specific file path validated by Code Path Analyzer
-        - Use find_error_handlers tool with exact file path when available
-        - Provide specific, actionable recommendations
-        - Be explicit about any missing or uncertain data
-        - Always provide structured JSON output
-        - Support all programming languages with language-specific analysis
-        - NEVER use example file names like "base_tm_action.py", "dataProcessor.js", etc.
-        - ONLY use information that actually comes from previous agents' findings
-        
-        EXAMPLE OUTPUT (using real data only):
-        {
-          "code_analysis": {
-            "error_handlers": ["[Only if actually found in the specific file]"],
-            "functions": ["[Only functions actually found in the specific file]"],
-            "classes": ["[Only classes actually found in the specific file]"],
-            "error_patterns": ["[Real error patterns from the specific file]"],
-            "potential_issues": ["[Specific issues found in the code]"]
-          },
-          "recommendations": {
-            "immediate_fixes": ["[Based on actual code analysis]"],
-            "long_term_improvements": ["[Based on actual code analysis]"],
-            "testing_suggestions": ["[How to test the actual fixes]"]
-          },
-          "language_analysis": {
-            "detected_language": "[Based on file extension or error patterns]",
-            "confidence": "[high|medium|low]",
-            "error_category": "[Based on actual error type]",
-            "common_scenarios": ["[Real scenarios for this error type]"]
-          },
-          "implementation_guidance": {
-            "file_locations": ["[Actual files that need changes]"],
-            "code_changes": ["[Specific changes needed]"],
-            "testing_approach": ["[How to test the fixes]"],
-            "prevention_strategies": ["[How to prevent similar issues]"]
-          }
-        }
-        """
-    )
+                Analyze code files to identify root causes and suggest fixes:
+                
+                1. Examine specific file and line number from error logs
+                2. Identify code issues (null access, type errors, logic errors)
+                3. Analyze function context and error handling
+                4. Provide actionable fixes with line references
+                
+                OUTPUT FORMAT (JSON):
+                {
+                  "targeted_analysis": {
+                    "target_file": "/path/to/analyzed/file.ext",
+                    "target_line": 123,
+                    "target_function": "function_name",
+                    "file_exists": true/false,
+                    "file_accessible": true/false,
+                    "analysis_quality": "[high|medium|low]"
+                  },
+                  "line_analysis": {
+                    "error_line_code": "[actual code at the error line]",
+                    "error_line_context": "[context around the error line]",
+                    "potential_issues": [
+                      {
+                        "issue_type": "[null_access|type_error|logic_error|etc]",
+                        "description": "[specific issue description]",
+                        "line_number": 123,
+                        "confidence": "[high|medium|low]"
+                      }
+                    ]
+                  },
+                  "function_analysis": {
+                    "function_name": "function_name",
+                    "function_signature": "def function_name(param1, param2):",
+                    "parameters": ["param1", "param2"],
+                    "error_handling": "[present|missing|inadequate]",
+                    "validation_logic": "[present|missing|inadequate]"
+                  },
+                  "code_issues": {
+                    "immediate_fixes": [
+                      {
+                        "action": "[specific fix action]",
+                        "line_number": 123,
+                        "description": "[what to change]",
+                        "impact": "[what this fix will solve]"
+                      }
+                    ],
+                    "potential_issues": ["[list of potential issues found]"],
+                    "missing_validation": ["[validation that should be added]"]
+                  },
+                  "analysis_summary": {
+                    "root_cause": "[definitive cause of the error]",
+                    "confidence_level": "[high|medium|low]",
+                    "fix_complexity": "[simple|moderate|complex]"
+                  }
+                }
+                
+                RULES:
+                - Focus on the specific file and line from log extraction
+                - Only analyze files that actually exist and are accessible
+                - Provide actionable fixes with exact line references
+                - Be specific about code issues and their locations
+                - If file doesn't exist, report file_exists: false
+                """
+            )
             return agent
         except Exception as e:
             import traceback
@@ -445,10 +139,6 @@ class CodeAgent:
             "error_handlers": [],
             "summary": ""
         }
-        
-        if not self.code_path:
-            results["summary"] = "No code path provided."
-            return results
         
         # Find Python files in the code path
         python_files = self._find_python_files(self.code_path)

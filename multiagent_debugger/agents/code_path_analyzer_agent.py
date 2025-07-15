@@ -48,9 +48,9 @@ class CodePathAnalyzerAgent:
         
         try:
             agent = Agent(
-                role="Code Path Validation Specialist",
-                goal="Validate that code paths exist on disk and are reachable within the expected project structure",
-                backstory="You are an expert at analyzing file system structures and validating that code paths are accessible and properly organized within project directories.",
+                role="Code Path Validator",
+                goal="Validate code paths and determine if files are accessible for analysis",
+                backstory="You are a code path validator who checks if files exist, are accessible, and relevant for debugging.",
                 verbose=verbose,
                 allow_delegation=False,
                 tools=tools or [],
@@ -58,122 +58,49 @@ class CodePathAnalyzerAgent:
                 max_iter=1,
                 memory=False,
                 instructions="""
-        CODE PATH VALIDATION ANALYSIS:
-        
-        Your mission is to validate code paths found in error logs and ensure they are:
-        1. EXISTENT: The file actually exists on disk
-        2. REACHABLE: The file is within the expected project structure
-        3. ACCESSIBLE: The file can be read and analyzed
-        4. RELEVANT: The file is part of the codebase being analyzed
-        
-        VALIDATION PROCESS:
-        
-        1. PATH EXISTENCE CHECK:
-        - Verify the file exists at the specified path
-        - Check if it's a regular file (not directory, symlink, etc.)
-        - Confirm file permissions allow reading
-        
-        2. PROJECT STRUCTURE VALIDATION:
-        - Ensure the file is within the configured code_path
-        - Check if it follows expected project organization
-        - Validate against common project patterns (src/, lib/, etc.)
-        
-        3. ACCESSIBILITY ASSESSMENT:
-        - Test if the file can be opened and read
-        - Check for any permission issues
-        - Verify file encoding is readable
-        
-        4. RELEVANCE DETERMINATION:
-        - Confirm the file is part of the active codebase
-        - Check if it's a source file (not config, docs, tests, etc.)
-        - Validate it's the correct file for the error context
-        
-        OUTPUT FORMAT (STRUCTURED JSON):
-        
-        {
-          "validation_result": {
-            "exists": true/false,
-            "reachable": true/false,
-            "accessible": true/false,
-            "relevant": true/false,
-            "project_root": "/path/to/project",
-            "relative_path": "src/actions/file.ext",
-            "file_size": 1234,
-            "last_modified": "2024-01-01T12:00:00Z",
-            "permissions": "rw-r--r--",
-            "language": "python/javascript/java/go/rust/etc",
-            "issues": [
-              "File not found",
-              "Outside project directory",
-              "Permission denied"
-            ]
-          },
-          "config_validation": {
-            "in_config_yaml": true/false,
-            "config_issues": ["list of config issues"],
-            "config_recommendations": ["list of config fixes"]
-          },
-          "code_analysis": {
-            "functions": ["list of functions in the file"],
-            "classes": ["list of classes in the file"],
-            "error_related_objects": ["objects related to the error"],
-            "suggested_focus": ["specific areas to investigate"]
-          },
-          "next_agent": "code_analyzer"
-        }
-        
-        LANGUAGE-AGNOSTIC SUPPORT:
-        - Support all programming languages: Python, JavaScript, TypeScript, Java, Go, Rust, PHP, Ruby, C#, Swift, etc.
-        - Detect language from file extension
-        - Provide language-specific analysis patterns
-        - Handle different project structures and conventions
-        
-        CRITICAL RULES:
-        - Always provide structured JSON output
-        - Be explicit about any issues found
-        - If file doesn't exist, mark exists=false and provide clear reason
-        - If file is outside project scope, mark reachable=false
-        - If validation fails, provide detailed recommendations
-        - If validation succeeds, analyze the file for error-related code
-        - Always check config.yaml for proper module references
-        - Be explicit about missing or uncertain data
-        
-        ERROR HANDLING:
-        - Handle missing files gracefully
-        - Provide alternative paths if possible
-        - Suggest common file locations
-        - Check for case sensitivity issues
-        - Look for similar file names in the project
-        - Handle different file path formats (absolute, relative, etc.)
-        
-        EXAMPLE OUTPUT (using real data only):
-        {
-          "validation_result": {
-            "exists": true,
-            "reachable": true,
-            "accessible": true,
-            "relevant": true,
-            "project_root": "/path/to/project",
-            "relative_path": "src/actions/file.py",
-            "file_size": 1234,
-            "last_modified": "2024-01-01T12:00:00Z",
-            "language": "python",
-            "issues": []
-          },
-          "config_validation": {
-            "in_config_yaml": true,
-            "config_issues": [],
-            "config_recommendations": ["File properly configured"]
-          },
-          "code_analysis": {
-            "functions": ["function1", "function2"],
-            "classes": ["Class1"],
-            "error_related_objects": ["error_handler", "validation_function"],
-            "suggested_focus": ["error handling logic", "input validation"]
-          },
-          "next_agent": "code_analyzer"
-        }
-        """
+                Validate code paths and determine file accessibility:
+                
+                1. Check if file exists and is accessible
+                2. Validate file is within project scope
+                3. Determine file language and relevance
+                4. Analyze file content for error-related code
+                
+                OUTPUT FORMAT (JSON):
+                {
+                  "validation_result": {
+                    "exists": true/false,
+                    "reachable": true/false,
+                    "accessible": true/false,
+                    "relevant": true/false,
+                    "project_root": "/path/to/project",
+                    "relative_path": "src/actions/file.ext",
+                    "file_size": 1234,
+                    "last_modified": "2024-01-01T12:00:00Z",
+                    "language": "python/javascript/java/go/rust/etc",
+                    "issues": ["list of issues found"]
+                  },
+                  "config_validation": {
+                    "in_config_yaml": true/false,
+                    "config_issues": ["list of config issues"],
+                    "config_recommendations": ["list of config fixes"]
+                  },
+                  "code_analysis": {
+                    "functions": ["list of functions in the file"],
+                    "classes": ["list of classes in the file"],
+                    "error_related_objects": ["objects related to the error"],
+                    "suggested_focus": ["specific areas to investigate"]
+                  },
+                  "next_agent": "code_analyzer"
+                }
+                
+                RULES:
+                - Check if file exists and is accessible
+                - Validate file is within project scope
+                - Determine language from file extension
+                - Analyze file content for error-related code
+                - Provide clear recommendations for issues
+                - Be explicit about missing or uncertain data
+                """
             )
             return agent
         except Exception as e:

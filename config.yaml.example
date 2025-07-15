@@ -1,73 +1,21 @@
-# Example configuration file for Multiagent Debugger
-# Optimized for efficiency and performance
+# Example configuration for multiagent-debugger
 
-# Paths to log files (supports files, directories, and wildcards)
-log_paths:
-  - /var/log/myapp/app.log                    # Individual log file
-  - /var/log/nginx/                           # All log files in directory
-  - /var/log/*.log                           # All .log files in directory
-  - /path/to/logs/                           # Recursive search for log files
-
-# Path to codebase
-code_path: /home/user/projects/order-service
-
-# LLM configuration
 llm:
-  # Supported providers: openai, anthropic, gemini, nvidia_nim, groq, huggingface, 
-  # ollama, watson, bedrock, azure, cerebras, sambanova
-  provider: openai
-  
-  # Model name examples:
-  # - OpenAI: gpt-4, gpt-4o, gpt-4o-mini, gpt-4.1, o1-mini
-  # - Anthropic: claude-3-5-sonnet-20240620, claude-3-sonnet-20240229, claude-3-opus-20240229
-  # - Google/Gemini: gemini/gemini-1.5-pro, gemini/gemini-2.5-pro-exp-03-25, gemini/gemini-1.5-flash
-  # - NVIDIA NIM: nvidia_nim/nvidia/mistral-nemo-minitron-8b-8k-instruct, nvidia_nim/meta/llama3-8b-instruct
-  # - Groq: groq/llama-3.1-8b-instant, groq/llama-3.1-70b-versatile, groq/gemma2-9b-it
-  # - Ollama: ollama/llama3.1, ollama/mixtral
-  # - Watson: watsonx/meta-llama/llama-3-1-70b-instruct, watsonx/mistral/mistral-large
-  # - Bedrock: bedrock/us.amazon.nova-pro-v1:0, bedrock/us.anthropic.claude-3-5-sonnet-20240620-v1:0
-  # - Azure: gpt-4, gpt-4o, gpt-3.5-turbo (same as OpenAI)
-  # - HuggingFace: huggingface/meta-llama/Meta-Llama-3.1-8B-Instruct, huggingface/mistralai/Mixtral-8x7B-Instruct-v0.1
-  # - SambaNova: sambanova/Meta-Llama-3.3-70B-Instruct, sambanova/QwQ-32B-Preview
-  model_name: gpt-4o-mini
-  
-  # Temperature (0.0 to 1.0)
+  provider: "openai"
+  model: "gpt-4"
+  api_key: "your-api-key-here"
   temperature: 0.1
-  
-  # Optional: API key (if not set in environment)
-  # api_key: your_api_key_here
-  
-  # Optional: API base URL (if different from default)
-  # api_base: https://api.openai.com/v1
-  
-  # Optional: Additional provider-specific parameters
   additional_params: {}
 
-# Memory configuration for CrewAI
-memory:
-  # Enable/disable memory (default: false)
-  # Note: Memory works best with OpenAI providers, may cause issues with others
-  enabled: false
-  
-  # Memory key for storing conversation history
-  memory_key: "multiagent_debugger_v1"
-  
-  # Enable caching for repeated queries
-  cache: true
+log_paths:
+  - "/path/to/your/logs/app.log"
+  - "/path/to/your/logs/error.log"
 
-# Enable verbose logging (optional, defaults to false)
-verbose: false 
+verbose: false
 
-# Performance optimizations
-performance:
-  # Enable caching for repeated queries
-  enable_cache: true
-  
-  # Increase rate limits for faster execution
-  max_rpm: 100  # Requests per minute
-  
-  # Reduce iterations for faster completion
-  max_iterations: 1
-  
-  # Enable parallel processing where possible
-  parallel_execution: true 
+# Log analysis options
+analysis_mode: "frequent"   # Options: frequent, latest, all
+# Only scan logs from the last N hours (default: 24)
+time_window_hours: 24
+# Maximum number of log lines to analyze (for large logs)
+max_lines: 10000 

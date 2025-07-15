@@ -23,9 +23,11 @@ class LLMConfig(BaseModel):
 class DebuggerConfig(BaseModel):
     """Configuration for the multiagent debugger."""
     log_paths: List[str] = Field(default_factory=list, description="Paths to log files")
-    code_path: Optional[str] = Field(None, description="Path to codebase or Git URL")
     llm: LLMConfig = Field(default_factory=LLMConfig, description="LLM configuration")
     verbose: bool = Field(False, description="Enable verbose logging")
+    analysis_mode: Optional[str] = Field(None, description="Log analysis mode: frequent, latest, or all")
+    time_window_hours: Optional[int] = Field(None, description="Time window (in hours) for log analysis")
+    max_lines: Optional[int] = Field(None, description="Maximum number of log lines to analyze")
 
 def find_config_file() -> Optional[str]:
     """
@@ -78,6 +80,7 @@ def load_config(config_path: str = None) -> DebuggerConfig:
     if config_path and os.path.exists(config_path):
         with open(config_path, 'r') as f:
             config_data = yaml.safe_load(f) or {}
+
     
     # Fix None values in additional_params
     if "llm" in config_data and config_data["llm"] is not None:
@@ -108,6 +111,14 @@ def load_config(config_path: str = None) -> DebuggerConfig:
             if "llm" not in config_data:
                 config_data["llm"] = {}
             config_data["llm"]["api_base"] = DEFAULT_API_BASES[provider]
+    
+    # Set defaults for new log analysis fields if not present
+    if "analysis_mode" not in config_data:
+        config_data["analysis_mode"] = None
+    if "time_window_hours" not in config_data:
+        config_data["time_window_hours"] = None
+    if "max_lines" not in config_data:
+        config_data["max_lines"] = None
     
     # Create config object
     config_obj = DebuggerConfig(**config_data)

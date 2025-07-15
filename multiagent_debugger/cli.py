@@ -82,8 +82,12 @@ def cli():
 @click.argument('question')
 @click.option('--config', '-c', help='Path to config file')
 @click.option('--verbose', '-v', is_flag=True, help='Enable verbose output')
-def debug(question: str, config: Optional[str] = None, verbose: bool = False):
-    """Debug an API failure with multi-agent assistance."""
+@click.option('--mode', type=click.Choice(['frequent', 'latest', 'all']), default=None, help='Log analysis mode')
+@click.option('--time-window-hours', type=int, default=None, help='Time window in hours for analysis')
+@click.option('--max-lines', type=int, default=None, help='Maximum log lines to analyze')
+@click.help_option('--help', '-h')
+def debug(question: str, config: Optional[str] = None, verbose: bool = False, mode: Optional[str] = None, time_window_hours: Optional[int] = None, max_lines: Optional[int] = None):
+    """Debug an API failure or error scenario with multi-agent assistance."""
     # Load config
     click.echo("Initializing Multi-Agent Debugger...")
     config_obj = load_config(config)
@@ -91,6 +95,14 @@ def debug(question: str, config: Optional[str] = None, verbose: bool = False):
     # Set verbose flag
     if verbose:
         config_obj.verbose = True
+    
+    # Set log analysis options from CLI if provided
+    if mode:
+        config_obj.analysis_mode = mode
+    if time_window_hours:
+        config_obj.time_window_hours = time_window_hours
+    if max_lines:
+        config_obj.max_lines = max_lines
     
     # Print LLM info
     click.echo(f"Using LLM Provider: {config_obj.llm.provider}")
@@ -257,6 +269,24 @@ def setup(output: Optional[str] = None):
         else:
             click.echo(f"  Invalid format. Use key=value format.")
     
+    # Prompt for log analysis options
+    click.echo("\nLog analysis options:")
+    analysis_mode = click.prompt(
+        "Log analysis mode (frequent = most common errors, latest = most recent unique errors, all = everything)",
+        type=click.Choice(['frequent', 'latest', 'all']),
+        default="frequent"
+    )
+    time_window_hours = click.prompt(
+        "Time window (in hours) for log analysis",
+        type=int,
+        default=24
+    )
+    max_lines = click.prompt(
+        "Maximum number of log lines to analyze (for large logs)",
+        type=int,
+        default=10000
+    )
+
     # Get log paths (files or directories)
     log_paths = []
     click.echo("\nEnter log file paths or log directories (press Enter when done):")
@@ -285,12 +315,6 @@ def setup(output: Optional[str] = None):
             click.echo(f"  Warning: No log files found at {log_path}")
             # Still add the path in case it's a valid path that will exist later
             log_paths.append(log_path)
-        
-    # Get code path
-    code_path = click.prompt(
-        "Enter path to codebase",
-        default="."
-    )
     
     # Get verbose setting
     verbose = click.confirm(
@@ -301,7 +325,6 @@ def setup(output: Optional[str] = None):
     # Create config
     config = DebuggerConfig(
         log_paths=log_paths,
-        code_path=code_path,
         llm=LLMConfig(
             provider=provider,
             model_name=model_name,
@@ -309,7 +332,10 @@ def setup(output: Optional[str] = None):
             api_base=api_base if api_base else None,
             additional_params=additional_params
         ),
-        verbose=verbose
+        verbose=verbose,
+        analysis_mode=analysis_mode,
+        time_window_hours=time_window_hours,
+        max_lines=max_lines
     )
     
     # Convert to dict
