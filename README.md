@@ -44,8 +44,7 @@ The Multi-Agent Debugger uses a sophisticated architecture that combines multipl
 - **AWS Bedrock**
 - **And 50+ more providers**
 
-### 🎨 Creative Features
-- **Storytelling**: Detective-style narratives with metaphors and analogies
+### Features
 - **Visual Flowcharts**: Mermaid diagrams for error propagation and system architecture
 - **Copyable Output**: Clean, copyable flowchart code for easy sharing
 - **Multi-language Support**: Python, JavaScript, Java, Go, Rust, and more
