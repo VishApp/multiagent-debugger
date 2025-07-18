@@ -23,6 +23,7 @@ class LLMConfig(BaseModel):
 class DebuggerConfig(BaseModel):
     """Configuration for the multiagent debugger."""
     log_paths: List[str] = Field(default_factory=list, description="Paths to log files")
+    code_path: Optional[str] = Field(None, description="Path to source code directory or file for analysis")
     llm: LLMConfig = Field(default_factory=LLMConfig, description="LLM configuration")
     verbose: bool = Field(False, description="Enable verbose logging")
     analysis_mode: Optional[str] = Field(None, description="Log analysis mode: frequent, latest, or all")
@@ -67,6 +68,47 @@ def get_env_api_base(provider: str) -> Optional[str]:
         if "API_BASE" in var or "ENDPOINT" in var:
             return os.getenv(var)
     return None
+
+def validate_code_path(code_path: str) -> Optional[str]:
+    """Validate the code_path configuration and return error message if invalid.
+    
+    Args:
+        code_path: The code path to validate
+        
+    Returns:
+        Error message if invalid, None if valid
+    """
+    if not code_path:
+        return None
+    
+    # Security checks
+    try:
+        # Convert to absolute path for validation
+        abs_path = os.path.abspath(code_path)
+        
+        # Check if path exists
+        if not os.path.exists(abs_path):
+            return f"Code path does not exist: {code_path}"
+        
+        # Security: prevent path traversal attacks
+        if '..' in code_path or code_path.startswith('/'):
+            # Allow absolute paths but validate they're not trying to escape
+            if not abs_path.startswith('/'):
+                return f"Invalid code path (potential security issue): {code_path}"
+        
+        # Check permissions
+        if not os.access(abs_path, os.R_OK):
+            return f"Code path is not readable: {code_path}"
+        
+        # Warn about sensitive directories
+        sensitive_dirs = ['/etc', '/var', '/usr', '/bin', '/sbin', '/boot', '/dev', '/proc', '/sys']
+        if any(abs_path.startswith(sensitive) for sensitive in sensitive_dirs):
+            return f"Code path points to a sensitive system directory: {code_path}"
+        
+        return None
+        
+    except (OSError, ValueError) as e:
+        return f"Error validating code path: {str(e)}"
 
 def load_config(config_path: str = None) -> DebuggerConfig:
     """Load configuration from file and environment variables."""
@@ -119,6 +161,13 @@ def load_config(config_path: str = None) -> DebuggerConfig:
         config_data["time_window_hours"] = None
     if "max_lines" not in config_data:
         config_data["max_lines"] = None
+    
+    # Validate code_path if provided
+    code_path = config_data.get('code_path')
+    if code_path:
+        validation_error = validate_code_path(code_path)
+        if validation_error:
+            raise ValueError(f"Invalid code_path configuration: {validation_error}")
     
     # Create config object
     config_obj = DebuggerConfig(**config_data)

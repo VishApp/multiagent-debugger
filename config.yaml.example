@@ -11,6 +11,9 @@ log_paths:
   - "/path/to/your/logs/app.log"
   - "/path/to/your/logs/error.log"
 
+# Path to source code directory or file for analysis
+code_path: "/path/to/your/source/code"  # Can be directory or specific file
+
 verbose: false
 
 # Log analysis options

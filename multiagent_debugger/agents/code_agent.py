@@ -23,8 +23,10 @@ class CodeAgent:
         # Handle both dict and DebuggerConfig objects
         if hasattr(config, 'llm'):
             self.llm_config = config.llm
+            self.code_path = getattr(config, 'code_path', None)
         else:
             self.llm_config = config.get("llm", {})
+            self.code_path = config.get("code_path", None)
         
     def create_agent(self, tools: List[BaseTool] = None) -> Agent:
         """Create and return the CrewAI agent.
@@ -44,9 +46,9 @@ class CodeAgent:
         
         try:
             agent = Agent(
-                role="Code Analysis Expert",
-                goal="Analyze specific code files and lines to identify root causes of errors",
-                backstory="You are a code analysis expert who examines source code to find bugs, identify issues, and suggest fixes.",
+                role="Multi-Language Code Analysis Expert",
+                goal="Analyze specific code files and lines across multiple programming languages to identify root causes of errors",
+                backstory="You are a multi-language code analysis expert who examines source code in Python, Go, JavaScript, Java, Rust, and other languages to find bugs, identify issues, and suggest fixes.",
                 verbose=verbose,
                 allow_delegation=False,
                 tools=tools or [],
@@ -54,19 +56,29 @@ class CodeAgent:
                 max_iter=1,
                 memory=False,
                 instructions="""
-                Analyze code files to identify root causes and suggest fixes:
+                Analyze code files across multiple programming languages to identify root causes and suggest fixes:
                 
-                1. Examine specific file and line number from error logs
-                2. Identify code issues (null access, type errors, logic errors)
-                3. Analyze function context and error handling
-                4. Provide actionable fixes with line references
+                CRITICAL VALIDATION: Before analyzing any file, you MUST validate that the target file path is within the configured code_path directory. If a file path from log analysis is outside the code_path, you MUST reject it and report this as a validation failure.
+                
+                1. FIRST: Validate that the extracted file path is within the configured code_path
+                2. Examine specific file and line number from error logs (supports .py, .go, .js, .ts, .java, .rs, .php, .rb, .cs, .cpp, .c, and more)
+                3. Identify language-specific code issues (null access, type errors, logic errors, memory issues, etc.)
+                4. Analyze function context and error handling patterns for each language
+                5. Provide actionable fixes with line references and language-appropriate solutions
                 
                 OUTPUT FORMAT (JSON):
                 {
+                  "validation": {
+                    "target_file_within_code_path": true/false,
+                    "code_path_configured": true/false,
+                    "validation_message": "[explanation if validation fails]",
+                    "should_analyze": true/false
+                  },
                   "targeted_analysis": {
                     "target_file": "/path/to/analyzed/file.ext",
                     "target_line": 123,
                     "target_function": "function_name",
+                    "programming_language": "[python|go|javascript|java|rust|etc]",
                     "file_exists": true/false,
                     "file_accessible": true/false,
                     "analysis_quality": "[high|medium|low]"
@@ -110,11 +122,17 @@ class CodeAgent:
                 }
                 
                 RULES:
-                - Focus on the specific file and line from log extraction
+                - CRITICAL PATH VALIDATION: Before any analysis, validate that the target file from log extraction is within the configured code_path
+                - If target file is outside code_path: set target_file_within_code_path=false, should_analyze=false, and explain in validation_message
+                - If no code_path is configured: set code_path_configured=false and should_analyze=false
+                - ONLY proceed with analysis if target_file_within_code_path=true
+                - Support multiple programming languages (.py, .go, .js, .ts, .java, .rs, .php, .rb, .cs, .cpp, .c, etc.)
                 - Only analyze files that actually exist and are accessible
-                - Provide actionable fixes with exact line references
-                - Be specific about code issues and their locations
+                - If validation fails, do NOT analyze the file - instead report the validation failure
+                - Provide language-appropriate actionable fixes with exact line references ONLY for validated files
+                - Be specific about code issues and their locations for each language
                 - If file doesn't exist, report file_exists: false
+                - Include programming_language in the targeted_analysis output
                 """
             )
             return agent
@@ -123,6 +141,75 @@ class CodeAgent:
             print(f"ERROR: Failed to create CrewAI Agent: {e}")
             print(traceback.format_exc())
             raise
+    
+    def _is_path_allowed(self, file_path: str) -> bool:
+        """Check if a file path is within the allowed code_path directory.
+        
+        Args:
+            file_path: The file path to check
+            
+        Returns:
+            bool: True if the path is allowed, False otherwise
+        """
+        if not self.code_path:
+            # If no code_path is configured, allow all paths (backward compatibility)
+            return True
+        
+        try:
+            # Convert to absolute paths for comparison
+            code_path_abs = os.path.abspath(self.code_path)
+            file_path_abs = os.path.abspath(file_path)
+            
+            # Check if the file is within the code directory
+            # Use os.path.commonpath to ensure proper path comparison
+            common_path = os.path.commonpath([code_path_abs, file_path_abs])
+            
+            # If code_path is a file, check exact match
+            if os.path.isfile(code_path_abs):
+                return code_path_abs == file_path_abs
+            
+            # If code_path is a directory, check if file is within it
+            return common_path == code_path_abs
+            
+        except (ValueError, OSError):
+            # If there's any error in path comparison, deny access for security
+            return False
+    
+    def validate_target_file_path(self, target_file_path: str) -> Dict[str, Any]:
+        """Validate that a target file path from log extraction is within the allowed code_path.
+        
+        Args:
+            target_file_path: The file path extracted from logs to validate
+            
+        Returns:
+            Dict with validation results
+        """
+        validation_result = {
+            "target_file_within_code_path": False,
+            "code_path_configured": bool(self.code_path),
+            "validation_message": "",
+            "should_analyze": False
+        }
+        
+        # Check if code_path is configured
+        if not self.code_path:
+            validation_result["validation_message"] = "No code_path configured in settings. Cannot validate target file path."
+            return validation_result
+        
+        # Check if target file path is provided
+        if not target_file_path:
+            validation_result["validation_message"] = "No target file path provided for validation."
+            return validation_result
+        
+        # Use the existing path validation logic
+        if self._is_path_allowed(target_file_path):
+            validation_result["target_file_within_code_path"] = True
+            validation_result["should_analyze"] = True
+            validation_result["validation_message"] = f"Target file '{target_file_path}' is within configured code_path '{self.code_path}'"
+        else:
+            validation_result["validation_message"] = f"Target file '{target_file_path}' is OUTSIDE configured code_path '{self.code_path}'. Analysis rejected for security."
+        
+        return validation_result
     
     def analyze_code(self, entities: Dict[str, Any]) -> Dict[str, Any]:
         """Analyze code for relevant information about API failures.
@@ -137,55 +224,173 @@ class CodeAgent:
             "api_handlers": [],
             "dependencies": [],
             "error_handlers": [],
-            "summary": ""
+            "summary": "",
+            "code_path_configured": bool(self.code_path),
+            "code_path_accessible": False
         }
         
-        # Find Python files in the code path
-        python_files = self._find_python_files(self.code_path)
+        # Check if code_path is configured and accessible
+        if not self.code_path:
+            results["summary"] = "No code_path configured in settings. Cannot analyze source code."
+            return results
+        
+        if not os.path.exists(self.code_path):
+            results["summary"] = f"Configured code_path '{self.code_path}' does not exist."
+            return results
+        
+        results["code_path_accessible"] = True
+        
+        # Find source code files in the code path
+        source_files = self._find_source_files(self.code_path)
         
         # Extract API route from entities
         api_route = entities.get("api_route")
         
-        # Analyze each Python file
-        for file_path in python_files:
+        # Analyze each source file
+        for file_path in source_files:
             try:
                 with open(file_path, 'r', encoding='utf-8') as f:
                     content = f.read()
                 
-                # Parse the Python file
-                tree = ast.parse(content)
+                # Get file extension to determine analysis approach
+                file_ext = file_path.suffix.lower()
                 
-                # Find API handlers if route is provided
-                if api_route:
-                    handlers = self._find_api_handlers(tree, api_route, content)
-                    results["api_handlers"].extend(handlers)
-                
-                # Find error handlers
-                error_handlers = self._find_error_handlers(tree, content)
-                results["error_handlers"].extend(error_handlers)
-                
-                # Extract dependencies
-                dependencies = self._extract_dependencies(tree)
-                results["dependencies"].extend(dependencies)
+                # Use Python AST for Python files, generic text analysis for others
+                if file_ext == '.py':
+                    try:
+                        tree = ast.parse(content)
+                        
+                        # Find API handlers if route is provided
+                        if api_route:
+                            handlers = self._find_api_handlers(tree, api_route, content)
+                            results["api_handlers"].extend(handlers)
+                        
+                        # Find error handlers
+                        error_handlers = self._find_error_handlers(tree, content)
+                        results["error_handlers"].extend(error_handlers)
+                        
+                        # Extract dependencies
+                        dependencies = self._extract_dependencies(tree)
+                        results["dependencies"].extend(dependencies)
+                    except SyntaxError:
+                        # If AST parsing fails, fall back to text analysis
+                        self._analyze_file_as_text(file_path, content, api_route, results)
+                else:
+                    # For non-Python files, use generic text analysis
+                    self._analyze_file_as_text(file_path, content, api_route, results)
                 
             except Exception as e:
                 print(f"Error analyzing file {file_path}: {str(e)}")
         
         # Generate summary
-        results["summary"] = f"Found {len(results['api_handlers'])} API handlers, " \
+        total_files = len(source_files)
+        file_types = set(f.suffix.lower() for f in source_files)
+        results["summary"] = f"Analyzed {total_files} source files ({', '.join(file_types)}). " \
+                            f"Found {len(results['api_handlers'])} API handlers, " \
                             f"{len(results['error_handlers'])} error handlers, and " \
                             f"{len(results['dependencies'])} dependencies."
         
         return results
     
-    def _find_python_files(self, path: str) -> List[Path]:
-        """Find all Python files in the given path."""
-        python_files = []
+    def _find_source_files(self, path: str) -> List[Path]:
+        """Find all source code files in the given path (restricted to code_path)."""
+        source_files = []
+        
+        if not path or not os.path.exists(path):
+            return source_files
+        
+        # Define source code extensions
+        source_extensions = [
+            '.py', '.go', '.js', '.ts', '.java', '.cpp', '.c', '.rs', '.php', '.rb', 
+            '.cs', '.swift', '.kt', '.scala', '.clj', '.hs', '.ml', '.fs', '.vb', 
+            '.pl', '.sh', '.sql', '.html', '.css', '.toml', '.ini', '.cfg', '.conf'
+        ]
+        
+        # If path is a single file, return it if it's a source file and allowed
+        if os.path.isfile(path):
+            if any(path.endswith(ext) for ext in source_extensions) and self._is_path_allowed(path):
+                source_files.append(Path(path))
+            return source_files
+        
+        # If path is a directory, walk through it
         for root, dirs, files in os.walk(path):
             for file in files:
-                if file.endswith('.py'):
-                    python_files.append(Path(root) / file)
-        return python_files
+                if any(file.endswith(ext) for ext in source_extensions):
+                    file_path = os.path.join(root, file)
+                    # Only include files that are within the allowed code_path
+                    if self._is_path_allowed(file_path):
+                        source_files.append(Path(file_path))
+        return source_files
+    
+    def _analyze_file_as_text(self, file_path: Path, content: str, api_route: str, results: Dict[str, Any]) -> None:
+        """Analyze a file using generic text patterns (for non-Python files)."""
+        file_ext = file_path.suffix.lower()
+        
+        # Generic patterns for different languages
+        if api_route:
+            # Look for API route patterns
+            api_patterns = [
+                rf'{re.escape(api_route)}',  # Exact match
+                rf'["\'{api_route}["\']',   # Quoted route
+                rf'/{api_route}',           # Path with leading slash
+                rf'{api_route}.*handler',   # Route with handler
+            ]
+            
+            for pattern in api_patterns:
+                matches = re.finditer(pattern, content, re.IGNORECASE)
+                for match in matches:
+                    # Find the line number
+                    line_num = content[:match.start()].count('\n') + 1
+                    results["api_handlers"].append({
+                        "name": f"handler_at_line_{line_num}",
+                        "line_number": line_num,
+                        "file": str(file_path),
+                        "pattern": pattern
+                    })
+        
+        # Look for error handling patterns across languages
+        error_patterns = [
+            r'try\s*{',                    # Java/C#/JavaScript try blocks
+            r'try:',                       # Python try blocks
+            r'catch\s*\(',                 # Java/JavaScript catch
+            r'except\s*\w*:',             # Python except
+            r'throw\s+new\s+\w+',         # Java/JavaScript throw
+            r'raise\s+\w+',               # Python raise
+            r'if\s+err\s*!=\s*nil',       # Go error handling
+            r'Result<.*,.*>',             # Rust Result type
+            r'Error\s*:',                 # Generic error labels
+            r'panic!',                    # Rust panic
+        ]
+        
+        for pattern in error_patterns:
+            matches = re.finditer(pattern, content, re.IGNORECASE)
+            for match in matches:
+                line_num = content[:match.start()].count('\n') + 1
+                results["error_handlers"].append({
+                    "type": "generic_error_handling",
+                    "line_number": line_num,
+                    "file": str(file_path),
+                    "pattern": match.group()
+                })
+        
+        # Look for import/dependency patterns
+        import_patterns = {
+            '.py': [r'^import\s+(\w+)', r'^from\s+(\w+)\s+import'],
+            '.js': [r'^import\s+.*from\s+["\']([^"\']+)["\']', r'^const\s+.*=\s+require\(["\']([^"\']+)["\']\)'],
+            '.ts': [r'^import\s+.*from\s+["\']([^"\']+)["\']', r'^import\s+.*=\s+require\(["\']([^"\']+)["\']\)'],
+            '.go': [r'^import\s+["\']([^"\']+)["\']', r'^\s*["\']([^"\']+)["\']'],
+            '.java': [r'^import\s+([\w\.]+);'],
+            '.rs': [r'^use\s+([\w:]+);', r'^extern\s+crate\s+(\w+);'],
+            '.php': [r'^use\s+([\w\\]+);', r'^include\s+["\']([^"\']+)["\']', r'^require\s+["\']([^"\']+)["\']'],
+            '.rb': [r'^require\s+["\']([^"\']+)["\']', r'^gem\s+["\']([^"\']+)["\']'],
+        }
+        
+        if file_ext in import_patterns:
+            for pattern in import_patterns[file_ext]:
+                matches = re.finditer(pattern, content, re.MULTILINE)
+                for match in matches:
+                    if match.groups():
+                        results["dependencies"].append(match.group(1))
     
     def _find_api_handlers(self, tree: ast.AST, route: str, content: str) -> List[Dict[str, Any]]:
         """Find API handlers that match the given route."""

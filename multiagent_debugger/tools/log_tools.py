@@ -83,11 +83,12 @@ class LogAnalyzer:
     """Enhanced log analyzer with structured parsing and pattern detection."""
     
     def __init__(self, log_paths: List[str], mode: AnalysisMode = AnalysisMode.FREQUENT, 
-                 time_window_hours: int = 24, max_lines: int = 10000):
+                 time_window_hours: int = 24, max_lines: int = 10000, code_path: str = None):
         self.log_paths = log_paths
         self.mode = mode
         self.time_window_hours = time_window_hours
         self.max_lines = max_lines
+        self.code_path = code_path
         
         self.timestamp_patterns = [
             r'\d{4}-\d{2}-\d{2}\s+\d{2}:\d{2}:\d{2}',  # 2025-07-14 07:32:03
@@ -104,6 +105,42 @@ class LogAnalyzer:
             'fatal', 'critical', 'timeout', 'refused', 'denied', 'invalid',
             'unauthorized', 'forbidden', 'not found', 'internal server error'
         ]
+    
+    def _is_code_path_allowed(self, file_path: str) -> bool:
+        """Check if a code file path is within the allowed code_path directory.
+        
+        Args:
+            file_path: The file path to check
+            
+        Returns:
+            bool: True if the path is allowed or no code_path is configured, False otherwise
+        """
+        if not self.code_path:
+            # If no code_path is configured, allow all paths (backward compatibility)
+            return True
+        
+        if not file_path:
+            return False
+        
+        try:
+            # Convert to absolute paths for comparison
+            code_path_abs = os.path.abspath(self.code_path)
+            file_path_abs = os.path.abspath(file_path)
+            
+            # Check if the file is within the code directory
+            # Use os.path.commonpath to ensure proper path comparison
+            common_path = os.path.commonpath([code_path_abs, file_path_abs])
+            
+            # If code_path is a file, check exact match
+            if os.path.isfile(code_path_abs):
+                return code_path_abs == file_path_abs
+            
+            # If code_path is a directory, check if file is within it
+            return common_path == code_path_abs
+            
+        except (ValueError, OSError):
+            # If there's any error in path comparison, deny access for security
+            return False
     
     def parse_log_line(self, line: str, file_path: str, line_number: int) -> LogEntry:
         """Parse a single log line into structured format."""
@@ -501,7 +538,7 @@ class LogAnalyzer:
         )
     
     def _is_source_code_file(self, file_path: str) -> bool:
-        """Check if a file path is a source code file (not a log file or data file)."""
+        """Check if a file path is a source code file (not a log file or data file) and within allowed code_path."""
         if not file_path:
             return False
         
@@ -544,7 +581,8 @@ class LogAnalyzer:
         
         for ext in source_code_extensions:
             if file_path_lower.endswith(ext):
-                return True
+                # CRITICAL: Also check if the file is within the allowed code_path
+                return self._is_code_path_allowed(file_path)
         
         return False
     
@@ -1100,11 +1138,17 @@ def create_enhanced_grep_logs_tool(log_paths: List[str] = None, agent_config: Di
             except ValueError:
                 analysis_mode = AnalysisMode.FREQUENT
             
+            # Get code_path from agent_config if available
+            code_path = None
+            if agent_config:
+                code_path = agent_config.get('code_path')
+            
             analyzer = LogAnalyzer(
                 log_paths,
                 mode=analysis_mode,
                 time_window_hours=final_time_window,
-                max_lines=final_max_lines
+                max_lines=final_max_lines,
+                code_path=code_path
             )
             
             # Set time range if specified
@@ -1221,11 +1265,17 @@ def create_enhanced_extract_stack_traces_tool(log_paths: List[str] = None, agent
             except ValueError:
                 analysis_mode = AnalysisMode.FREQUENT
             
+            # Get code_path from agent_config if available
+            code_path = None
+            if agent_config:
+                code_path = agent_config.get('code_path')
+            
             analyzer = LogAnalyzer(
                 log_paths,
                 mode=analysis_mode,
                 time_window_hours=final_time_window,
-                max_lines=final_max_lines
+                max_lines=final_max_lines,
+                code_path=code_path
             )
             stack_traces = analyzer.extract_stack_traces(filter_term)
             
@@ -1326,11 +1376,17 @@ def create_error_pattern_analysis_tool(log_paths: List[str] = None, agent_config
             except ValueError:
                 analysis_mode = AnalysisMode.FREQUENT
             
+            # Get code_path from agent_config if available
+            code_path = None
+            if agent_config:
+                code_path = agent_config.get('code_path')
+            
             analyzer = LogAnalyzer(
                 log_paths,
                 mode=analysis_mode,
                 time_window_hours=final_time_window,
-                max_lines=final_max_lines
+                max_lines=final_max_lines,
+                code_path=code_path
             )
             patterns = analyzer.analyze_error_patterns(time_window_hours)
             
@@ -1424,11 +1480,17 @@ def create_enhanced_filter_logs_tool(log_paths: List[str] = None, agent_config: 
             except ValueError:
                 analysis_mode = AnalysisMode.FREQUENT
             
+            # Get code_path from agent_config if available
+            code_path = None
+            if agent_config:
+                code_path = agent_config.get('code_path')
+            
             analyzer = LogAnalyzer(
                 log_paths,
                 mode=analysis_mode,
                 time_window_hours=final_time_window,
-                max_lines=final_max_lines
+                max_lines=final_max_lines,
+                code_path=code_path
             )
             
             # Set time range if specified
@@ -1615,12 +1677,18 @@ def create_intelligent_error_analysis_tool(log_paths: List[str] = None, agent_co
             except ValueError:
                 analysis_mode = AnalysisMode.FREQUENT
             
+            # Get code_path from agent_config if available
+            code_path = None
+            if agent_config:
+                code_path = agent_config.get('code_path')
+            
             # Create analyzer
             analyzer = LogAnalyzer(
                 log_paths or [],
                 mode=analysis_mode,
                 time_window_hours=final_time_window,
-                max_lines=final_max_lines
+                max_lines=final_max_lines,
+                code_path=code_path
             )
             
             # Perform analysis

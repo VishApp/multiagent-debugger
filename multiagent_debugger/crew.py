@@ -85,7 +85,8 @@ class DebuggerCrew:
         agent_config = {
             'analysis_mode': getattr(self.config, 'analysis_mode', 'frequent'),
             'time_window_hours': getattr(self.config, 'time_window_hours', 24),
-            'max_lines': getattr(self.config, 'max_lines', 10000)
+            'max_lines': getattr(self.config, 'max_lines', 10000),
+            'code_path': getattr(self.config, 'code_path', None)
         }
         
         return [
@@ -202,6 +203,14 @@ class DebuggerCrew:
             if not valid_log_paths:
                 issues.append("❌ No valid log files found - cannot perform log analysis")
         
+        # Check code_path if configured
+        code_path = getattr(self.config, 'code_path', None)
+        if code_path:
+            if not os.path.exists(code_path):
+                issues.append(f"❌ Code path does not exist: {code_path}")
+            elif not (os.path.isdir(code_path) or os.path.isfile(code_path)):
+                issues.append(f"❌ Code path is not a valid file or directory: {code_path}")
+        
         if issues:
             return f"""
 🚨 CONFIGURATION VALIDATION FAILED
@@ -211,8 +220,8 @@ The following issues prevent debugging from proceeding:
 {chr(10).join(issues)}
 
 📋 REQUIRED ACTIONS:
-1. Update your config.yaml with valid log paths
-2. Ensure log files exist and are readable
+1. Update your config.yaml with valid log paths and code_path
+2. Ensure log files and code directory exist and are readable
 3. Run the debugger again
 
 Example valid configuration:
@@ -220,6 +229,7 @@ Example valid configuration:
 log_paths:
   - /var/log/myapp/app.log
   - /var/log/nginx/access.log
+code_path: "/path/to/your/source/code"  # Optional: restrict code analysis to this path
 ```
 """
         
@@ -452,9 +462,14 @@ The analyzer should extract ALL file paths mentioned in your error/question.
             
             CONTEXT: Use the code_analysis_decision from the log agent to determine what to analyze.
             
-            CRITICAL: You MUST use the exact file paths and line numbers extracted by the log agent.
+            CRITICAL VALIDATION: You MUST first validate that the target file path from log analysis is within your configured code_path before proceeding with any analysis.
+            
+            STEP 1: Validate the extracted file path is within the configured code_path
+            STEP 2: Only proceed with analysis if validation passes
+            STEP 3: If validation fails, report the validation failure and do NOT analyze the file
+            
             The log agent provides extracted_code_paths with file_path, line_number, and function_name.
-            Use these exact values in your analysis and file references.
+            Use these exact values in your analysis and file references ONLY if they pass validation.
             
             ANALYSIS FOCUS:
             1. Analyze the target file and line number from log extraction
@@ -474,7 +489,9 @@ The analyzer should extract ALL file paths mentioned in your error/question.
             OUTPUT FORMAT (STRUCTURED JSON):
             {{
               "validation": {{
-                "is_log_file": true/false,
+                "target_file_within_code_path": true/false,
+                "code_path_configured": true/false,
+                "validation_message": "[explanation if validation fails]",
                 "should_analyze": true/false,
                 "reason": "[why analysis should/should not proceed]"
               }},
@@ -525,10 +542,13 @@ The analyzer should extract ALL file paths mentioned in your error/question.
             }}
             
             CRITICAL RULES:
-            - Focus on the specific file and line from log extraction
-            - Provide actionable fixes with exact line references
+            - FIRST: Validate that the target file from log extraction is within your configured code_path
+            - If target file is outside code_path: set target_file_within_code_path=false and should_analyze=false
+            - DO NOT proceed with analysis if validation fails - report the validation failure instead
+            - Focus on the specific file and line from log extraction ONLY if it passes validation
+            - Provide actionable fixes with exact line references ONLY for validated files
             - If file doesn't exist, report file_exists: false
-            - ALWAYS use the exact file paths from the log agent's extracted_code_paths
+            - ALWAYS use the exact file paths from the log agent's extracted_code_paths (after validation)
             - NEVER reference log files (.log files) in your analysis
             - Always pass the extracted code_path to code analysis tools
             - MUST analyze the actual code in the extracted files using appropriate tools
