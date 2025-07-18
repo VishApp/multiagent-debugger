@@ -85,8 +85,9 @@ def cli():
 @click.option('--mode', type=click.Choice(['frequent', 'latest', 'all']), default=None, help='Log analysis mode')
 @click.option('--time-window-hours', type=int, default=None, help='Time window in hours for analysis')
 @click.option('--max-lines', type=int, default=None, help='Maximum log lines to analyze')
+@click.option('--code-path', type=str, default=None, help='Path to source code directory or file for analysis')
 @click.help_option('--help', '-h')
-def debug(question: str, config: Optional[str] = None, verbose: bool = False, mode: Optional[str] = None, time_window_hours: Optional[int] = None, max_lines: Optional[int] = None):
+def debug(question: str, config: Optional[str] = None, verbose: bool = False, mode: Optional[str] = None, time_window_hours: Optional[int] = None, max_lines: Optional[int] = None, code_path: Optional[str] = None):
     """Debug an API failure or error scenario with multi-agent assistance."""
     # Load config
     click.echo("Initializing Multi-Agent Debugger...")
@@ -103,6 +104,8 @@ def debug(question: str, config: Optional[str] = None, verbose: bool = False, mo
         config_obj.time_window_hours = time_window_hours
     if max_lines:
         config_obj.max_lines = max_lines
+    if code_path:
+        config_obj.code_path = code_path
     
     # Print LLM info
     click.echo(f"Using LLM Provider: {config_obj.llm.provider}")
@@ -272,7 +275,7 @@ def setup(output: Optional[str] = None):
     # Prompt for log analysis options
     click.echo("\nLog analysis options:")
     analysis_mode = click.prompt(
-        "Log analysis mode (frequent = most common errors, latest = most recent unique errors, all = everything)",
+        "Log analysis mode",
         type=click.Choice(['frequent', 'latest', 'all']),
         default="frequent"
     )
@@ -316,6 +319,19 @@ def setup(output: Optional[str] = None):
             # Still add the path in case it's a valid path that will exist later
             log_paths.append(log_path)
     
+    # Get code path (optional)
+    click.echo("\nSource code analysis options:")
+    code_path = click.prompt(
+        "Enter path to source code directory or file (press Enter to skip code path restriction)",
+        default="",
+        show_default=False
+    )
+    if code_path:
+        click.echo(f"  Code analysis will be restricted to: {code_path}")
+    else:
+        click.echo("  Code analysis will not be restricted to a specific path")
+        code_path = None
+    
     # Get verbose setting
     verbose = click.confirm(
         "Enable verbose logging?",
@@ -325,6 +341,7 @@ def setup(output: Optional[str] = None):
     # Create config
     config = DebuggerConfig(
         log_paths=log_paths,
+        code_path=code_path,
         llm=LLMConfig(
             provider=provider,
             model_name=model_name,

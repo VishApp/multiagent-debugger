@@ -105,6 +105,7 @@ Options:
                                   all:      Analyze all available log lines
   --time-window-hours INT       Time window (hours) for log analysis
   --max-lines INT               Maximum log lines to analyze
+  --code-path PATH              Path to source code directory/file for analysis
   -h, --help                    Show this message and exit
 
 Examples:
@@ -112,7 +113,11 @@ Examples:
       --config ~/.config/multiagent-debugger/config.yaml --mode latest
 
   multiagent-debugger debug 'why did the upload to S3 fail?' \
-      --mode frequent --time-window-hours 12
+      --mode frequent --time-window-hours 12 \
+      --code-path /Users/myname/myproject/src
+
+  multiagent-debugger debug 'analyze recent errors' \
+      --code-path /path/to/specific/file.py
 ```
 
 This command analyzes your logs, extracts error patterns and code paths, and provides root cause analysis with actionable solutions and flowcharts.
@@ -127,6 +132,9 @@ log_paths:
   - "/var/log/myapp/app.log"
   - "/var/log/nginx/access.log"
 
+# Path to source code directory or file for analysis (SECURITY FEATURE)
+code_path: "/path/to/your/source/code"  # Restricts code analysis to this path only
+
 # Log analysis options
 analysis_mode: "frequent"   # frequent, latest, all
 time_window_hours: 24      # analyze logs from last N hours
@@ -138,6 +146,32 @@ llm:
   model_name: gpt-4
   temperature: 0.1
   #api_key: optional, can use environment variable
+```
+
+### Code Path Security
+
+The `code_path` configuration is a **security feature** that restricts code analysis to a specific directory or file:
+
+```yaml
+# Security: Only analyze code within this path
+code_path: "/Users/myname/myproject/src"
+```
+
+**How it works:**
+- When logs contain file paths (from stack traces, errors), the system validates them against `code_path`
+- Files outside the configured path are **rejected** and not analyzed
+- This prevents the system from analyzing sensitive system files or unrelated codebases
+- Can be a directory (analyzes all source files within) or a specific file
+
+**Use cases:**
+- **Multi-project environments**: Restrict analysis to current project only
+- **Security**: Prevent analysis of system files or sensitive directories
+- **Focus**: Analyze only specific parts of large codebases
+
+**CLI override:**
+```bash
+# Override config file code_path for this session
+multiagent-debugger debug "question" --code-path /path/to/specific/project
 ```
 
 ### Custom Providers
@@ -170,10 +204,12 @@ Set the appropriate environment variable for your chosen provider:
 - Validates code paths found in logs
 
 ### 3. Code Analysis
+- **Validates** that extracted file paths are within the configured `code_path` (security)
 - Locates relevant API handlers and endpoints
 - Identifies dependencies and error handlers
 - Maps the code structure and relationships
 - Supports multiple programming languages (Python, JavaScript, Java, Go, Rust, etc.)
+- **Rejects** analysis of files outside the configured code path
 
 ### 4. Root Cause Analysis
 - Synthesizes information from all previous agents
@@ -212,6 +248,15 @@ multiagent-debugger debug "What went wrong?" --mode latest --time-window-hours 2
 ### Analyze Large Log Files
 ```bash
 multiagent-debugger debug "Find patterns" --max-lines 50000
+```
+
+### Restrict Code Analysis to Specific Path
+```bash
+# Only analyze code within /path/to/project directory
+multiagent-debugger debug "What caused the error?" --code-path /path/to/project
+
+# Analyze only a specific file
+multiagent-debugger debug "Debug this file" --code-path /path/to/file.py
 ```
 
 ## 🧪 Development
