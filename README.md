@@ -88,7 +88,7 @@ multiagent-debugger debug "Why did my /api/users endpoint fail yesterday?"
 ### Debug Command
 
 ```
-Usage: python -m multiagent_debugger debug [OPTIONS] QUESTION
+Usage: multiagent_debugger debug [OPTIONS] QUESTION
 
   Debug an API failure or error scenario with multi-agent assistance.
 
