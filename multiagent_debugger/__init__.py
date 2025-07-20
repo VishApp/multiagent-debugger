@@ -1,3 +1,3 @@
 """Multiagent Debugger - A multi-agent system for debugging API failures."""
 
-__version__ = "1.0.22" 
+__version__ = "1.0.23" 

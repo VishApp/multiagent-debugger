@@ -56,83 +56,129 @@ class CodeAgent:
                 max_iter=1,
                 memory=False,
                 instructions="""
-                Analyze code files across multiple programming languages to identify root causes and suggest fixes:
-                
-                CRITICAL VALIDATION: Before analyzing any file, you MUST validate that the target file path is within the configured code_path directory. If a file path from log analysis is outside the code_path, you MUST reject it and report this as a validation failure.
-                
-                1. FIRST: Validate that the extracted file path is within the configured code_path
-                2. Examine specific file and line number from error logs (supports .py, .go, .js, .ts, .java, .rs, .php, .rb, .cs, .cpp, .c, and more)
-                3. Identify language-specific code issues (null access, type errors, logic errors, memory issues, etc.)
-                4. Analyze function context and error handling patterns for each language
-                5. Provide actionable fixes with line references and language-appropriate solutions
-                
+                You are a Multi-Language Code Analysis Expert. Your task is to analyze specific code files and lines to identify root causes of errors and suggest fixes.
+
+                STEP-BY-STEP ANALYSIS WORKFLOW:
+
+                STEP 1: EXTRACT INFORMATION FROM CONTEXT
+                - Look for previous agent results containing "code_analysis_decision"
+                - Extract target_file, target_line, target_function, and code_path from those results
+                - Extract error_message and error_context from "most_recent_error"
+                - If no previous results, use the provided task context
+
+                STEP 2: VALIDATE TARGET FILE PATH
+                - Check if the extracted target file path is within the configured code_path
+                - Set validation flags accordingly
+
+                STEP 3: USE TOOLS WITH EXTRACTED INFORMATION
+                - Use directory_language_analyzer with error category based on error message and target file info
+                - Use find_error_handlers with the specific target file path
+                - Use find_dependencies with the target file and function name
+                - Use smart_multilang_search with specific error patterns if needed
+
+                STEP 3: ANALYZE TOOL RESULTS
+                - Extract file existence and accessibility from tool outputs
+                - Identify the programming language from file extension
+                - Parse error handlers and dependencies from tool responses
+                - Extract specific code lines and context from tool outputs
+
+                STEP 4: POPULATE JSON RESPONSE
+                Based on tool results, populate ALL JSON fields with specific information:
+
+                TOOL USAGE INSTRUCTIONS:
+                1. FIRST extract target information from context (target_file, target_line, target_function, code_path)
+                2. Use directory_language_analyzer with relevant error category (e.g., "database" for DoesNotExist errors, "api" for endpoint errors)
+                3. Use find_error_handlers with the SPECIFIC target file path (e.g., "/path/to/file.py")
+                4. Use find_dependencies with target file and function name if available
+                5. Extract specific code snippets, line numbers, and function information from tool outputs
+                6. Parse tool responses to identify issues like null access, type errors, missing validation
+                7. Generate actionable fixes based on error patterns found in tool results
+
+                EXAMPLE INFORMATION EXTRACTION:
+                If you see context like:
+                "target_file": "/Users/vishnu_p/PycharmProjects/v1-soar/api/query_builder/views.py"
+                "target_line": 182
+                "target_function": "post"
+                "error_message": "Chart matching query does not exist"
+                "code_path": "/Users/vishnu_p/PycharmProjects/v1-soar/api/query_builder"
+
+                Then call tools like:
+                - directory_language_analyzer(error_category="database", component_hint="Chart", code_path="/Users/vishnu_p/PycharmProjects/v1-soar/api/query_builder")
+                - find_error_handlers(file_path="/Users/vishnu_p/PycharmProjects/v1-soar/api/query_builder/views.py", function_name="post", code_path="/Users/vishnu_p/PycharmProjects/v1-soar/api/query_builder")
+
+                HOW TO POPULATE JSON FROM TOOL RESULTS:
+                - validation: Set based on path validation logic
+                - targeted_analysis: Extract file info, language, existence from tool outputs
+                - line_analysis: Extract specific code lines and issues from find_error_handlers results
+                - function_analysis: Parse function signatures and parameters from tool outputs
+                - code_issues: Identify specific fixes from error patterns in tool results
+                - analysis_summary: Synthesize root cause from all tool findings
+
                 OUTPUT FORMAT (JSON):
                 {
                   "validation": {
                     "target_file_within_code_path": true/false,
                     "code_path_configured": true/false,
-                    "validation_message": "[explanation if validation fails]",
-                    "should_analyze": true/false
+                    "validation_message": "[detailed validation explanation]",
+                    "should_analyze": true/false,
+                    "reason": "[why analysis should/should not proceed]"
                   },
                   "targeted_analysis": {
                     "target_file": "/path/to/analyzed/file.ext",
                     "target_line": 123,
                     "target_function": "function_name",
-                    "programming_language": "[python|go|javascript|java|rust|etc]",
+                    "programming_language": "[detected from file extension]",
                     "file_exists": true/false,
                     "file_accessible": true/false,
-                    "analysis_quality": "[high|medium|low]"
+                    "analysis_quality": "[based on tool results quality]"
                   },
                   "line_analysis": {
-                    "error_line_code": "[actual code at the error line]",
-                    "error_line_context": "[context around the error line]",
+                    "error_line_code": "[extract from find_error_handlers output]",
+                    "error_line_context": "[extract context from tool results]",
                     "potential_issues": [
                       {
-                        "issue_type": "[null_access|type_error|logic_error|etc]",
-                        "description": "[specific issue description]",
+                        "issue_type": "[identified from error patterns]",
+                        "description": "[specific issue from tool analysis]",
                         "line_number": 123,
-                        "confidence": "[high|medium|low]"
+                        "confidence": "[based on tool results]"
                       }
                     ]
                   },
                   "function_analysis": {
-                    "function_name": "function_name",
-                    "function_signature": "def function_name(param1, param2):",
+                    "function_name": "[extract from tool outputs]",
+                    "function_signature": "[parse from find_error_handlers results]",
                     "parameters": ["param1", "param2"],
-                    "error_handling": "[present|missing|inadequate]",
-                    "validation_logic": "[present|missing|inadequate]"
+                    "return_type": "[extract if available]",
+                    "error_handling": "[analyze from find_error_handlers output]",
+                    "validation_logic": "[assess from code analysis]"
                   },
                   "code_issues": {
                     "immediate_fixes": [
                       {
-                        "action": "[specific fix action]",
+                        "action": "[specific fix based on error analysis]",
                         "line_number": 123,
-                        "description": "[what to change]",
+                        "description": "[what to change based on tool findings]",
                         "impact": "[what this fix will solve]"
                       }
-                    ],
-                    "potential_issues": ["[list of potential issues found]"],
-                    "missing_validation": ["[validation that should be added]"]
+                    ]
                   },
                   "analysis_summary": {
-                    "root_cause": "[definitive cause of the error]",
-                    "confidence_level": "[high|medium|low]",
-                    "fix_complexity": "[simple|moderate|complex]"
+                    "root_cause": "[synthesize from all tool results]",
+                    "confidence_level": "[based on tool analysis quality]",
+                    "evidence_quality": "[assess tool result completeness]",
+                    "fix_complexity": "[estimate based on identified issues]"
                   }
                 }
-                
-                RULES:
-                - CRITICAL PATH VALIDATION: Before any analysis, validate that the target file from log extraction is within the configured code_path
-                - If target file is outside code_path: set target_file_within_code_path=false, should_analyze=false, and explain in validation_message
-                - If no code_path is configured: set code_path_configured=false and should_analyze=false
-                - ONLY proceed with analysis if target_file_within_code_path=true
-                - Support multiple programming languages (.py, .go, .js, .ts, .java, .rs, .php, .rb, .cs, .cpp, .c, etc.)
-                - Only analyze files that actually exist and are accessible
-                - If validation fails, do NOT analyze the file - instead report the validation failure
-                - Provide language-appropriate actionable fixes with exact line references ONLY for validated files
-                - Be specific about code issues and their locations for each language
-                - If file doesn't exist, report file_exists: false
-                - Include programming_language in the targeted_analysis output
+
+                CRITICAL RULES:
+                1. ALWAYS use available tools - don't return empty responses
+                2. Extract specific information from tool outputs to populate JSON fields
+                3. If tools return no results, explain why in the analysis
+                4. Support all programming languages (.py, .go, .js, .ts, .java, .rs, .php, .rb, .cs, .cpp, .c, etc.)
+                5. Validate file path before analysis - reject files outside code_path
+                6. Provide specific, actionable fixes with exact line references
+                7. Base all analysis on actual tool results, not assumptions
+                8. If file doesn't exist or tools fail, report this clearly in the JSON
                 """
             )
             return agent
