@@ -1661,6 +1661,31 @@ def create_intelligent_error_analysis_tool(log_paths: List[str] = None, agent_co
             JSON string with error patterns, code paths, and routing recommendations
         """
         try:
+            # Validate log paths first
+            if not log_paths:
+                return json.dumps({
+                    "error": "No log paths configured",
+                    "routing_decision": {
+                        "should_analyze_code": False,
+                        "reason": "No log paths provided - cannot analyze logs"
+                    }
+                }, indent=2)
+            
+            # Check if any log files exist and have content
+            valid_log_paths = []
+            for log_path in log_paths:
+                if os.path.exists(log_path) and os.path.getsize(log_path) > 0:
+                    valid_log_paths.append(log_path)
+            
+            if not valid_log_paths:
+                return json.dumps({
+                    "error": "No valid log files found or all log files are empty",
+                    "routing_decision": {
+                        "should_analyze_code": False,
+                        "reason": f"No valid log files found. Checked paths: {log_paths}"
+                    }
+                }, indent=2)
+            
             # Use agent config values with proper defaults
             if agent_config:
                 final_mode = agent_config.get('analysis_mode') or 'frequent'
@@ -1682,9 +1707,9 @@ def create_intelligent_error_analysis_tool(log_paths: List[str] = None, agent_co
             if agent_config:
                 code_path = agent_config.get('code_path')
             
-            # Create analyzer
+            # Create analyzer with only valid log paths
             analyzer = LogAnalyzer(
-                log_paths or [],
+                valid_log_paths,
                 mode=analysis_mode,
                 time_window_hours=final_time_window,
                 max_lines=final_max_lines,
@@ -1693,6 +1718,26 @@ def create_intelligent_error_analysis_tool(log_paths: List[str] = None, agent_co
             
             # Perform analysis
             analysis = analyzer.analyze_errors_intelligent()
+            
+            # CRITICAL: Check if any actual errors were found
+            if analysis['total_errors'] == 0:
+                return json.dumps({
+                    "error": "No errors found in log files",
+                    "routing_decision": {
+                        "should_analyze_code": False,
+                        "reason": f"No errors found in valid log files in the last {final_time_window} hours"
+                    },
+                    "log_analysis": {
+                        "analysis_type": "no_errors_found",
+                        "primary_evidence": f"Analyzed {len(valid_log_paths)} log files but found no errors",
+                        "error_patterns": {
+                            "total_patterns": 0,
+                            "most_common": "None",
+                            "frequency_distribution": {}
+                        },
+                        "supporting_evidence": f"Time window: {final_time_window}h, Log files checked: {len(valid_log_paths)}"
+                    }
+                }, indent=2)
             
             # Extract code paths for routing
             code_paths = []

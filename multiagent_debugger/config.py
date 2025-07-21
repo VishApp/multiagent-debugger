@@ -20,11 +20,21 @@ class LLMConfig(BaseModel):
     temperature: float = Field(0.1, description="Temperature for LLM generation")
     additional_params: Dict[str, Any] = Field(default_factory=dict, description="Additional provider-specific parameters")
 
+class PhoenixConfig(BaseModel):
+    """Configuration for Phoenix monitoring."""
+    enabled: bool = Field(True, description="Enable Phoenix monitoring")
+    host: str = Field("localhost", description="Phoenix host")
+    port: int = Field(6006, description="Phoenix port")
+    endpoint: str = Field("http://localhost:6006/v1/traces", description="OTLP endpoint for traces")
+    launch_phoenix: bool = Field(True, description="Launch Phoenix app locally")
+    headers: Dict[str, str] = Field(default_factory=dict, description="Additional headers for OTLP")
+
 class DebuggerConfig(BaseModel):
     """Configuration for the multiagent debugger."""
     log_paths: List[str] = Field(default_factory=list, description="Paths to log files")
     code_path: Optional[str] = Field(None, description="Path to source code directory or file for analysis")
     llm: LLMConfig = Field(default_factory=LLMConfig, description="LLM configuration")
+    phoenix: PhoenixConfig = Field(default_factory=PhoenixConfig, description="Phoenix monitoring configuration")
     verbose: bool = Field(False, description="Enable verbose logging")
     analysis_mode: Optional[str] = Field(None, description="Log analysis mode: frequent, latest, or all")
     time_window_hours: Optional[int] = Field(None, description="Time window (in hours) for log analysis")

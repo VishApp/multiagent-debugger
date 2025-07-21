@@ -223,6 +223,49 @@ Set the appropriate environment variable for your chosen provider:
 - Visual flowcharts in Mermaid format
 - Copyable flowchart code for easy sharing
 
+## 📊 Phoenix Monitoring
+
+The debugger includes built-in Phoenix monitoring for tracking agent execution, LLM usage, and performance metrics.
+
+### View Monitoring Status
+```bash
+multiagent-debugger phoenix
+```
+
+This shows your Phoenix configuration and provides instructions for accessing the dashboard.
+
+### Remote Server Access
+
+When running the debugger on a remote server, use SSH port forwarding to access the Phoenix dashboard:
+
+```bash
+# On your local machine, create SSH tunnel
+ssh -L 6006:localhost:6006 user@your-server
+
+# Then visit in your local browser
+http://localhost:6006
+```
+
+### Configuration
+
+Phoenix monitoring is configured in your `config.yaml`:
+
+```yaml
+phoenix:
+  enabled: true
+  host: localhost
+  port: 6006
+  launch_phoenix: true
+```
+
+### Features
+
+- **Real-time Monitoring**: Track agent executions as they happen
+- **LLM Usage Tracking**: Monitor token usage and costs across providers
+- **Performance Metrics**: Analyze execution times and success rates
+- **Visual Traces**: See the complete flow of agent interactions
+- **Automatic Launch**: Starts automatically when you run debug commands
+
 ## 🛠️ Advanced Usage
 
 ### List Available Providers

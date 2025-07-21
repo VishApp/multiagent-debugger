@@ -72,6 +72,73 @@ def is_log_file(filename: str) -> bool:
     filename_lower = filename.lower()
     return any(pattern in filename_lower for pattern in log_patterns)
 
+def _is_phoenix_running(host: str = "localhost", port: int = 6006) -> bool:
+    """Check if Phoenix is already running on the specified host and port."""
+    try:
+        import requests
+        response = requests.get(f"http://{host}:{port}/health", timeout=3)
+        return response.status_code == 200
+    except Exception:
+        return False
+
+def _start_phoenix_background(host: str = "localhost", port: int = 6006):
+    """Start Phoenix in background if not already running."""
+    try:
+        import subprocess
+        import sys
+        import time
+        
+        # Launch Phoenix in background using subprocess
+        python_path = sys.executable
+        script_args = [
+            python_path, "-c", 
+            f"""
+import phoenix as px
+import time
+import signal
+import sys
+
+def signal_handler(sig, frame):
+    print('\\nShutting down Phoenix...')
+    sys.exit(0)
+
+signal.signal(signal.SIGINT, signal_handler)
+signal.signal(signal.SIGTERM, signal_handler)
+
+try:
+    session = px.launch_app(port={port})
+    print(f'Phoenix dashboard launched at: {{session.url}}')
+    print('Phoenix running in background. Use "multiagent-debugger phoenix --stop" to stop.')
+    
+    # Keep running
+    while True:
+        time.sleep(1)
+except Exception as e:
+    print(f'Error: {{e}}')
+    sys.exit(1)
+"""
+        ]
+        
+        # Start Phoenix in background
+        process = subprocess.Popen(
+            script_args,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+            preexec_fn=os.setpgrp if hasattr(os, 'setpgrp') else None  # Detach from parent process
+        )
+        
+        # Give it a moment to start
+        time.sleep(3)
+        
+        # Check if it's running
+        if _is_phoenix_running(host, port):
+            click.echo(f"Phoenix started successfully. Dashboard: http://{host}:{port}")
+        else:
+            click.echo("Phoenix may have failed to start. Check manually if needed.")
+            
+    except Exception as e:
+        click.echo(f"Failed to start Phoenix in background: {e}")
+
 @click.group()
 @click.version_option(version=__version__, prog_name="multiagent-debugger")
 def cli():
@@ -86,8 +153,10 @@ def cli():
 @click.option('--time-window-hours', type=int, default=None, help='Time window in hours for analysis')
 @click.option('--max-lines', type=int, default=None, help='Maximum log lines to analyze')
 @click.option('--code-path', type=str, default=None, help='Path to source code directory or file for analysis')
+@click.option('--phoenix', is_flag=True, help='Enable Phoenix monitoring for this session')
+@click.option('--no-phoenix', is_flag=True, help='Disable Phoenix monitoring for this session')
 @click.help_option('--help', '-h')
-def debug(question: str, config: Optional[str] = None, verbose: bool = False, mode: Optional[str] = None, time_window_hours: Optional[int] = None, max_lines: Optional[int] = None, code_path: Optional[str] = None):
+def debug(question: str, config: Optional[str] = None, verbose: bool = False, mode: Optional[str] = None, time_window_hours: Optional[int] = None, max_lines: Optional[int] = None, code_path: Optional[str] = None, phoenix: bool = False, no_phoenix: bool = False):
     """Debug an API failure or error scenario with multi-agent assistance."""
     # Load config
     click.echo("Initializing Multi-Agent Debugger...")
@@ -107,6 +176,13 @@ def debug(question: str, config: Optional[str] = None, verbose: bool = False, mo
     if code_path:
         config_obj.code_path = code_path
     
+    # Override Phoenix configuration from CLI flags
+    if phoenix:
+        config_obj.phoenix.enabled = True
+        config_obj.phoenix.launch_phoenix = False  # Don't launch new session when using --phoenix flag
+    elif no_phoenix:
+        config_obj.phoenix.enabled = False
+    
     # Print LLM info
     click.echo(f"Using LLM Provider: {config_obj.llm.provider}")
     click.echo(f"Using Model: {config_obj.llm.model_name}")
@@ -119,6 +195,27 @@ def debug(question: str, config: Optional[str] = None, verbose: bool = False, mo
             click.echo(f"Required environment variables for {config_obj.llm.provider}:")
             for var in provider_vars:
                 click.echo(f"  - {var}")
+    
+    # Initialize Phoenix monitoring if enabled
+    phoenix_monitor = None
+    if config_obj.phoenix.enabled:
+        # Auto-start Phoenix if it's not running
+        if not _is_phoenix_running(config_obj.phoenix.host, config_obj.phoenix.port):
+            click.echo("Phoenix not running. Starting Phoenix in background...")
+            _start_phoenix_background(config_obj.phoenix.host, config_obj.phoenix.port)
+            
+        try:
+            from multiagent_debugger.utils.phoenix_monitor import initialize_phoenix
+            phoenix_monitor = initialize_phoenix(config_obj.phoenix.model_dump())
+            if phoenix_monitor.enabled:
+                dashboard_url = phoenix_monitor.get_dashboard_url()
+                click.echo(f"Phoenix monitoring enabled. Dashboard: {dashboard_url}")
+            else:
+                click.echo("Phoenix monitoring disabled (dependencies not available)")
+        except ImportError:
+            click.echo("Phoenix monitoring unavailable (install with: pip install arize-phoenix)")
+        except Exception as e:
+            click.echo(f"Phoenix monitoring initialization failed: {e}")
     
     # Run debugger
     click.echo(f"Analyzing: {question}")
@@ -137,6 +234,15 @@ def debug(question: str, config: Optional[str] = None, verbose: bool = False, mo
             import traceback
             click.echo(traceback.format_exc(), err=True)
         sys.exit(1)
+    finally:
+        # Shutdown Phoenix monitoring
+        if phoenix_monitor:
+            try:
+                from multiagent_debugger.utils.phoenix_monitor import shutdown_phoenix
+                shutdown_phoenix()
+            except Exception as e:
+                if verbose:
+                    click.echo(f"Phoenix shutdown error: {e}")
 
 @cli.command()
 @click.option('--output', '-o', help='Path to output config file')
@@ -338,6 +444,36 @@ def setup(output: Optional[str] = None):
         default=False
     )
     
+    # Get Phoenix monitoring settings
+    click.echo("\nPhoenix monitoring options:")
+    phoenix_enabled = click.confirm(
+        "Enable Phoenix monitoring for agent and LLM call tracing?",
+        default=True
+    )
+    
+    phoenix_config = {
+        "enabled": phoenix_enabled,
+        "host": "localhost",
+        "port": 6006,
+        "endpoint": "http://localhost:6006/v1/traces",
+        "launch_phoenix": True,
+        "headers": {}
+    }
+    
+    if phoenix_enabled:
+        # Ask for advanced Phoenix settings
+        if click.confirm("Configure advanced Phoenix settings?", default=False):
+            phoenix_config["host"] = click.prompt("Phoenix host", default="localhost")
+            phoenix_config["port"] = click.prompt("Phoenix port", default=6006, type=int)
+            phoenix_config["endpoint"] = click.prompt(
+                "OTLP endpoint", 
+                default=f"http://{phoenix_config['host']}:{phoenix_config['port']}/v1/traces"
+            )
+            phoenix_config["launch_phoenix"] = click.confirm(
+                "Launch Phoenix app locally?", 
+                default=True
+            )
+    
     # Create config
     config = DebuggerConfig(
         log_paths=log_paths,
@@ -349,6 +485,7 @@ def setup(output: Optional[str] = None):
             api_base=api_base if api_base else None,
             additional_params=additional_params
         ),
+        phoenix=phoenix_config,
         verbose=verbose,
         analysis_mode=analysis_mode,
         time_window_hours=time_window_hours,
@@ -356,7 +493,7 @@ def setup(output: Optional[str] = None):
     )
     
     # Convert to dict
-    config_dict = config.dict()
+    config_dict = config.model_dump()
     
     # Write config to file
     if not output:
@@ -388,6 +525,39 @@ def setup(output: Optional[str] = None):
     
     click.echo("\nSetup complete! You can now run:")
     click.echo(f"multiagent-debugger debug 'your question here' --config {output}")
+
+@cli.command()
+@click.option('--config', '-c', help='Path to config file')
+def phoenix(config: Optional[str] = None):
+    """Show Phoenix monitoring configuration and status."""
+    from multiagent_debugger.config import load_config
+    
+    # Load config to get Phoenix settings
+    config_obj = load_config(config)
+    
+    # Show Phoenix status
+    try:
+        from multiagent_debugger.utils.phoenix_monitor import PHOENIX_AVAILABLE
+        
+        click.echo("Phoenix Configuration:")
+        click.echo(f"  Enabled: {config_obj.phoenix.enabled}")
+        click.echo(f"  Host: {config_obj.phoenix.host}")
+        click.echo(f"  Port: {config_obj.phoenix.port}")
+        click.echo(f"  Endpoint: {config_obj.phoenix.endpoint}")
+        click.echo(f"  Launch Phoenix: {config_obj.phoenix.launch_phoenix}")
+        
+        # Check if Phoenix dependencies are available
+        click.echo(f"  Dependencies Available: {PHOENIX_AVAILABLE}")
+        
+        if PHOENIX_AVAILABLE:
+            click.echo(f"\nNote: Phoenix monitoring will automatically start when you run 'debug' command.")
+            click.echo(f"Dashboard will be available at: http://{config_obj.phoenix.host}:{config_obj.phoenix.port}")
+            click.echo(f"\nTo access dashboard from local browser when running on remote server:")
+            click.echo(f"  ssh -L {config_obj.phoenix.port}:localhost:{config_obj.phoenix.port} user@your-server")
+            click.echo(f"  then visit http://localhost:{config_obj.phoenix.port} in your local browser")
+        
+    except Exception as e:
+        click.echo(f"Error checking Phoenix status: {e}")
 
 @cli.command()
 def list_providers():

@@ -10,3 +10,12 @@ gitpython>=3.1.31
 pyyaml>=6.0
 rich>=13.4.2
 requests>=2.25.0
+arize-phoenix
+arize-phoenix-otel
+opentelemetry-api
+opentelemetry-sdk
+opentelemetry-instrumentation
+opentelemetry-instrumentation-openai
+opentelemetry-instrumentation-requests
+openinference-instrumentation-openai
+psutil>=5.8.0

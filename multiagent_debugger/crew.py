@@ -158,6 +158,14 @@ class DebuggerCrew:
         Returns:
             String containing the debugging result
         """
+        # Initialize Phoenix monitoring if available
+        phoenix_monitor = None
+        try:
+            from multiagent_debugger.utils.phoenix_monitor import get_phoenix_monitor
+            phoenix_monitor = get_phoenix_monitor()
+        except ImportError:
+            pass
+        
         # Validate paths before starting
         validation_result = self._validate_paths()
         if validation_result:
@@ -167,14 +175,25 @@ class DebuggerCrew:
         tasks = self._create_tasks(question)
         self.crew.tasks = tasks
         
-        # Run the crew with detailed error logging
-        try:
-            result = self.crew.kickoff()
-        except Exception as e:
-            import traceback
-            print(f"ERROR: Exception during CrewAI kickoff: {e}")
-            print(traceback.format_exc())
-            raise
+        # Run the crew with Phoenix tracing
+        if phoenix_monitor and phoenix_monitor.enabled:
+            with phoenix_monitor.trace_crew_execution("DebuggerCrew", question):
+                try:
+                    result = self.crew.kickoff()
+                except Exception as e:
+                    import traceback
+                    print(f"ERROR: Exception during CrewAI kickoff: {e}")
+                    print(traceback.format_exc())
+                    raise
+        else:
+            # Run without Phoenix tracing
+            try:
+                result = self.crew.kickoff()
+            except Exception as e:
+                import traceback
+                print(f"ERROR: Exception during CrewAI kickoff: {e}")
+                print(traceback.format_exc())
+                raise
         
         # Determine final result string
         final_result = (
@@ -202,6 +221,11 @@ class DebuggerCrew:
             
             if not valid_log_paths:
                 issues.append("❌ No valid log files found - cannot perform log analysis")
+            else:
+                # CRITICAL: Check if any log files actually contain errors
+                has_errors = self._check_logs_for_errors(valid_log_paths)
+                if not has_errors:
+                    issues.append("❌ No errors found in log files - nothing to analyze")
         
         # Check code_path if configured
         code_path = getattr(self.config, 'code_path', None)
@@ -235,92 +259,42 @@ code_path: "/path/to/your/source/code"  # Optional: restrict code analysis to th
         
         return None
     
-        """Validate that question analysis doesn't contain fake data."""
-        # Common fake file patterns that agents might generate
-        fake_patterns = [
-            r'/src/utils/dataProcessor\.js',
-            r'base_tm_action\.py',
-            r'dataProcessor\.js',
-            r'processData',
-            r'/src/api\.js',
-            r'fetchData',
-            r'/v1/data',
-            r'base_tm_action',
-            r'get_siem'
+    def _check_logs_for_errors(self, log_paths: List[str]) -> bool:
+        """Check if log files actually contain error entries.
+        
+        Args:
+            log_paths: List of valid log file paths
+            
+        Returns:
+            bool: True if errors found, False if no errors
+        """
+        error_indicators = [
+            'error', 'ERROR', 'Error',
+            'exception', 'Exception', 'EXCEPTION',
+            'traceback', 'Traceback', 'TRACEBACK',
+            'failed', 'Failed', 'FAILED',
+            'failure', 'Failure', 'FAILURE',
+            'panic', 'PANIC', 'Panic',
+            'fatal', 'Fatal', 'FATAL',
+            'critical', 'Critical', 'CRITICAL',
+            'null pointer', 'NullPointer', 'nullpointer'
         ]
         
-        # Check if analysis contains fake patterns
-        found_fake_data = []
-        for pattern in fake_patterns:
-            if re.search(pattern, analysis_result, re.IGNORECASE):
-                found_fake_data.append(pattern)
+        for log_path in log_paths[:3]:  # Check first 3 log files to avoid long delays
+            try:
+                with open(log_path, 'r', encoding='utf-8', errors='ignore') as f:
+                    # Read last 1000 lines for recent errors
+                    lines = f.readlines()
+                    recent_lines = lines[-1000:] if len(lines) > 1000 else lines
+                    
+                    for line in recent_lines:
+                        if any(indicator in line for indicator in error_indicators):
+                            return True
+                            
+            except Exception:
+                continue  # Skip files that can't be read
         
-        if found_fake_data:
-            return f"""
-🚨 FAKE DATA DETECTED
-
-The question analyzer extracted fake data that doesn't exist in your actual error:
-
-Fake patterns found: {', '.join(found_fake_data)}
-
-Your original question: "{question}"
-
-The analyzer should only extract information that is EXPLICITLY mentioned in your error/question.
-
-📋 REQUIRED ACTIONS:
-1. Provide a more specific error message with actual file names and error details
-2. If you don't have specific file names, just describe the error without them
-3. The system will work with general error descriptions
-
-Example good error descriptions:
-- "My API is returning 500 errors"
-- "Database connection is failing"
-- "Authentication is not working"
-- "File upload is failing with permission errors"
-"""
-        
-        # Check if the question contains a specific file path but analysis doesn't extract it
-        file_path_patterns = [
-            r'File\s+"([^"]+)"',
-            r'File\s+\'([^\']+)\'',
-            r'File\s+"([^"]+\.(py|js|ts|java|cpp|c|go|rs|php|rb|cs|swift|kt|scala|clj|hs|ml|fs|vb|pl|sh|sql|html|css|xml|json|yaml|yml|toml|ini|cfg|conf|md|txt))"',
-            r'File\s+\'([^\']+\.(py|js|ts|java|cpp|c|go|rs|php|rb|cs|swift|kt|scala|clj|hs|ml|fs|vb|pl|sh|sql|html|css|xml|json|yaml|yml|toml|ini|cfg|conf|md|txt))\'',
-            r'in\s+([^\s]+\.(py|js|ts|java|cpp|c|go|rs|php|rb|cs|swift|kt|scala|clj|hs|ml|fs|vb|pl|sh|sql|html|css|xml|json|yaml|yml|toml|ini|cfg|conf|md|txt))',
-            r'at\s+([^\s]+\.(py|js|ts|java|cpp|c|go|rs|php|rb|cs|swift|kt|scala|clj|hs|ml|fs|vb|pl|sh|sql|html|css|xml|json|yaml|yml|toml|ini|cfg|conf|md|txt))',
-            r'([^\s]+\.(py|js|ts|java|cpp|c|go|rs|php|rb|cs|swift|kt|scala|clj|hs|ml|fs|vb|pl|sh|sql|html|css|xml|json|yaml|yml|toml|ini|cfg|conf|md|txt))'
-        ]
-        
-        question_file_paths = []
-        for pattern in file_path_patterns:
-            matches = re.findall(pattern, question)
-            question_file_paths.extend(matches)
-        
-        analysis_file_paths = []
-        for pattern in file_path_patterns:
-            matches = re.findall(pattern, analysis_result)
-            analysis_file_paths.extend(matches)
-        
-        # If question has file paths but analysis doesn't extract them
-        if question_file_paths and not analysis_file_paths:
-            return f"""
-🚨 FILE PATH EXTRACTION FAILED
-
-The question analyzer failed to extract file paths that are present in your error:
-
-File paths found in your error: {', '.join(question_file_paths)}
-File paths extracted by analyzer: {', '.join(analysis_file_paths) if analysis_file_paths else 'None'}
-
-Your original question: "{question}"
-
-The analyzer should extract ALL file paths mentioned in your error/question.
-
-📋 REQUIRED ACTIONS:
-1. The system will retry with enhanced file path extraction
-2. If the issue persists, provide the error message in a simpler format
-3. Focus on the specific file path that contains the error
-"""
-        
-        return None
+        return False
     
     def _create_tasks(self, question: str) -> List[Task]:
         """Create tasks for the crew based on the question.
@@ -444,9 +418,11 @@ The analyzer should extract ALL file paths mentioned in your error/question.
             }}
             
             DECISION LOGIC:
+            - CRITICAL: If no errors found in logs, set should_analyze_code = false
             - If code paths found: set should_analyze_code = true and provide code_path
             - If no code paths found: set should_analyze_code = false
             - The code_path should be the directory containing the target file
+            - NEVER fabricate error data if logs are empty or non-existent
             """,
             agent=self.log_agent_agent,
             expected_output="Structured JSON with log analysis and code analysis decision",

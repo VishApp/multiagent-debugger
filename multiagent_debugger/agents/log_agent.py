@@ -168,10 +168,13 @@ class LogAgent:
                 - The code_path should be the directory containing the target file
                 
                 RULES:
+                - CRITICAL: If no errors are found in logs, return should_analyze_code = false and explain why
+                - NEVER fabricate or hallucinate error data if logs are empty or contain no errors
                 - Extract source code file paths from log content, not log file names
                 - Look for stack traces with file paths and line numbers
                 - Prioritize the most recent error for analysis
                 - Be explicit about missing or uncertain data
+                - If logs exist but contain no errors, state this clearly in the reason field
                 """
             )
             return agent
@@ -215,6 +218,22 @@ class LogAgent:
         
         # Use intelligent analysis
         analysis = analyzer.analyze_errors_intelligent()
+        
+        # CRITICAL: Check if any errors were actually found
+        if analysis['total_errors'] == 0:
+            return {
+                "extracted_code_paths": [],
+                "most_recent_error": {},
+                "extraction_quality": "no_errors_found",
+                "analysis_summary": {
+                    "total_errors": 0,
+                    "unique_patterns": 0,
+                    "latest_unique_errors": 0,
+                    "time_window_hours": analysis['time_window_hours'],
+                    "analysis_mode": analysis['analysis_mode'],
+                    "message": "No errors found in log files - nothing to analyze"
+                }
+            }
         
         # Extract code paths from patterns and latest errors
         extracted_code_paths = []

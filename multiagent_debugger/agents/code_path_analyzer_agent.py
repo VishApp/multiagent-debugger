@@ -94,10 +94,13 @@ class CodePathAnalyzerAgent:
                 }
                 
                 RULES:
-                - Check if file exists and is accessible
+                - CRITICAL: Only analyze real files that actually exist
+                - NEVER fabricate file analysis if path doesn't exist
+                - Check if file exists and is accessible first
                 - Validate file is within project scope
                 - Determine language from file extension
-                - Analyze file content for error-related code
+                - Analyze file content for error-related code only if file exists
+                - If no valid file path provided, return exists: false
                 - Provide clear recommendations for issues
                 - Be explicit about missing or uncertain data
                 """

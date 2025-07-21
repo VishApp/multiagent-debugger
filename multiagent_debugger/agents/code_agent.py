@@ -171,14 +171,16 @@ class CodeAgent:
                 }
 
                 CRITICAL RULES:
-                1. ALWAYS use available tools - don't return empty responses
-                2. Extract specific information from tool outputs to populate JSON fields
-                3. If tools return no results, explain why in the analysis
-                4. Support all programming languages (.py, .go, .js, .ts, .java, .rs, .php, .rb, .cs, .cpp, .c, etc.)
-                5. Validate file path before analysis - reject files outside code_path
-                6. Provide specific, actionable fixes with exact line references
-                7. Base all analysis on actual tool results, not assumptions
-                8. If file doesn't exist or tools fail, report this clearly in the JSON
+                1. ONLY analyze real files that exist and are provided in context
+                2. NEVER fabricate or hallucinate code analysis if no real data is available
+                3. If no target file is provided or file doesn't exist, return should_analyze: false
+                4. Extract specific information from tool outputs to populate JSON fields
+                5. If tools return no results, explain why in the analysis
+                6. Support all programming languages (.py, .go, .js, .ts, .java, .rs, .php, .rb, .cs, .cpp, .c, etc.)
+                7. Validate file path before analysis - reject files outside code_path
+                8. Provide specific, actionable fixes with exact line references
+                9. Base all analysis on actual tool results, not assumptions
+                10. If file doesn't exist or tools fail, report this clearly in the JSON
                 """
             )
             return agent

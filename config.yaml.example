@@ -14,6 +14,15 @@ log_paths:
 # Path to source code directory or file for analysis
 code_path: "/path/to/your/source/code"  # Can be directory or specific file
 
+# Phoenix monitoring configuration
+phoenix:
+  enabled: true                                    # Enable/disable Phoenix monitoring
+  host: "localhost"                               # Phoenix host
+  port: 6006                                      # Phoenix port
+  endpoint: "http://localhost:6006/v1/traces"     # OTLP endpoint for traces
+  launch_phoenix: true                            # Launch Phoenix app locally
+  headers: {}                                     # Additional headers for OTLP
+
 verbose: false
 
 # Log analysis options

@@ -176,10 +176,13 @@ class RootCauseAgent:
                 - Show error propagation path and solution steps
                 
                 RULES:
-                - Use exact information from previous agents
+                - CRITICAL: Only use exact information from previous agents
+                - NEVER fabricate or hallucinate root cause analysis
+                - If no real errors found in logs, return error: "No errors found in log files"
+                - If no code files analyzed, return error: "No code files available for analysis"
+                - Only generate flowcharts when real data exists
                 - Be concise and developer-friendly
-                - Provide actionable next steps
-                - Generate visual flowcharts for clarity
+                - Provide actionable next steps only when real data supports them
                 - If insufficient data, say "Insufficient data for root cause analysis"
                 """
             )
