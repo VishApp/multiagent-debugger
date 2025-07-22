@@ -42,7 +42,6 @@ __all__ = [
     'get_memory_config',
     'set_crewai_env_vars',
     'create_crewai_llm',
-    # 'create_langchain_llm',  # Deprecated - use create_crewai_llm instead
     'get_agent_llm_config',
     'llm_config_manager'
 ] 

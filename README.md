@@ -146,6 +146,15 @@ llm:
   model_name: gpt-4
   temperature: 0.1
   #api_key: optional, can use environment variable
+
+# Phoenix monitoring configuration (optional)
+phoenix:
+  enabled: true                                    # Enable/disable Phoenix monitoring
+  host: "localhost"                               # Phoenix host
+  port: 6006                                      # Phoenix dashboard port
+  endpoint: "http://localhost:6006/v1/traces"     # OTLP endpoint for traces
+  launch_phoenix: true                            # Launch Phoenix app locally
+  headers: {}                                     # Additional headers for OTLP
 ```
 
 ### Code Path Security

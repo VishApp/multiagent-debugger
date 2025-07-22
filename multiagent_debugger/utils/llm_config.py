@@ -10,6 +10,42 @@ from .constants import (
     ENV_VARS, DEFAULT_API_BASES, CREWAI_ENV_VARS, MODELS
 )
 
+def _detect_provider_from_model(model: str) -> str:
+    """Detect the provider based on the model name by searching through MODELS constant.
+    
+    Args:
+        model: The model name to search for
+        
+    Returns:
+        The detected provider name or "unknown" if not found
+    """
+    model_lower = model.lower()
+    
+    # First, check for exact matches
+    for provider, model_list in MODELS.items():
+        if model in model_list:
+            return provider
+    
+    # Then check for partial matches (for models like claude-3.7-sonnet)
+    for provider, model_list in MODELS.items():
+        for provider_model in model_list:
+            # Remove provider prefix for comparison (e.g., "anthropic/claude-3-5-sonnet" -> "claude-3-5-sonnet")
+            clean_model = provider_model.split('/')[-1] if '/' in provider_model else provider_model
+            if clean_model.lower() in model_lower or model_lower in clean_model.lower():
+                return provider
+    
+    # Special case for Claude models not in the list
+    if "claude" in model_lower:
+        return "anthropic"
+    elif "gpt" in model_lower or "openai" in model_lower:
+        return "openai"
+    elif "gemini" in model_lower:
+        return "gemini"
+    elif "llama" in model_lower:
+        return "openai"  # Many custom endpoints serve Llama models via OpenAI API
+    
+    return "unknown"
+
 class LLMConfigManager:
     """Manager for LLM configuration and model information."""
     
@@ -372,9 +408,35 @@ def create_crewai_llm(provider: str, model: str, temperature: float, api_key: st
             if api_base:
                 os.environ["OLLAMA_BASE_URL"] = api_base
         elif provider.lower() == "custom":
-            # For custom providers, we don't set specific environment variables
-            # as they may have their own naming conventions
-            pass
+            # For custom providers, detect the actual provider based on model name
+            detected_provider = _detect_provider_from_model(model)
+            print(f"DEBUG: Detected provider '{detected_provider}' for model '{model}'")
+            
+            if detected_provider == "anthropic":
+                os.environ["ANTHROPIC_API_KEY"] = api_key
+            elif detected_provider == "openai":
+                os.environ["OPENAI_API_KEY"] = api_key
+            elif detected_provider == "gemini":
+                os.environ["GOOGLE_API_KEY"] = api_key
+            elif detected_provider == "groq":
+                os.environ["GROQ_API_KEY"] = api_key
+            elif detected_provider == "nvidia_nim":
+                os.environ["NVIDIA_NIM_API_KEY"] = api_key
+            elif detected_provider == "watson":
+                os.environ["WATSONX_APIKEY"] = api_key
+            elif detected_provider == "bedrock":
+                # Bedrock uses AWS credentials, not a single API key
+                pass
+            elif detected_provider == "huggingface":
+                os.environ["HF_TOKEN"] = api_key
+            elif detected_provider == "sambanova":
+                os.environ["SAMBANOVA_API_KEY"] = api_key
+            elif detected_provider == "openrouter":
+                os.environ["OPENROUTER_API_KEY"] = api_key
+            else:
+                # Default to OpenAI-compatible for unknown models
+                print(f"DEBUG: Unknown model '{model}', defaulting to OpenAI-compatible")
+                os.environ["OPENAI_API_KEY"] = api_key
     
     try:
         # Build base configuration
@@ -389,19 +451,7 @@ def create_crewai_llm(provider: str, model: str, temperature: float, api_key: st
             llm_config["api_key"] = api_key
         if api_base:
             llm_config["base_url"] = api_base
-        
-        # Handle OpenRouter specially - it uses OpenAI API format but with custom base URL
-        if provider.lower() == "openrouter":
-            # For OpenRouter, we need to use the OpenAI provider with custom base URL
-            llm = LLM(**llm_config)
-        elif provider.lower() == "custom":
-            # For custom providers, we need to specify the base URL
-            if not api_base:
-                raise ValueError("Custom provider requires api_base to be specified")
-            llm = LLM(**llm_config)
-        else:
-            # Create the LLM object with the appropriate model identifier
-            llm = LLM(**llm_config)
+        llm = LLM(**llm_config)
         
         return llm
         

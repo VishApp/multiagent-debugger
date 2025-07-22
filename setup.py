@@ -62,6 +62,11 @@ setup(
         "opentelemetry-instrumentation-openai",
         "opentelemetry-instrumentation-requests",
         "openinference-instrumentation-openai",
+        "opentelemetry-instrumentation",
+        "openinference-instrumentation-anthropic",
+        "openinference-instrumentation-google-genai",
+        "openinference-instrumentation-groq",
+        "openinference-instrumentation-mistralai",
         "psutil>=5.8.0",
     ],
     entry_points={

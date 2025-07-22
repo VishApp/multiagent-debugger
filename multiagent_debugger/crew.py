@@ -60,10 +60,17 @@ class DebuggerCrew:
         self.flowchart_tools = self._create_flowchart_tools()
         
         # Create CrewAI agents with retry configuration
-        self.question_analyzer_agent = self.question_analyzer.create_agent()
-        self.log_agent_agent = self.log_agent.create_agent(tools=self.log_tools + self.flowchart_tools)
-        self.code_agent_agent = self.code_agent.create_agent(tools=self.code_tools + self.flowchart_tools)
-        self.root_cause_agent_agent = self.root_cause_agent.create_agent(tools=self.flowchart_tools)
+        try:
+            self.question_analyzer_agent = self.question_analyzer.create_agent()
+            self.log_agent_agent = self.log_agent.create_agent(tools=self.log_tools + self.flowchart_tools)
+            self.code_agent_agent = self.code_agent.create_agent(tools=self.code_tools + self.flowchart_tools)
+            self.root_cause_agent_agent = self.root_cause_agent.create_agent(tools=self.flowchart_tools)
+        except Exception as e:
+            print(f"ERROR: Failed to create agents: {e}")
+            import traceback
+            print("Full agent creation traceback:")
+            print(traceback.format_exc())
+            raise Exception(f"Agent creation failed: {e}")
         
         # Create crew
         self.crew = self._create_crew()
@@ -174,8 +181,10 @@ class DebuggerCrew:
         # Create tasks
         tasks = self._create_tasks(question)
         self.crew.tasks = tasks
-        
+        self.crew.name = "DebuggerCrew"
         # Run the crew with Phoenix tracing
+        print(f"Starting debugging process for question: {question}")
+        print(f"Phoenix monitoring enabled: {phoenix_monitor and phoenix_monitor.enabled}")
         if phoenix_monitor and phoenix_monitor.enabled:
             with phoenix_monitor.trace_crew_execution("DebuggerCrew", question):
                 try:

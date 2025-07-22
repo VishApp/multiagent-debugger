@@ -1,7 +1,6 @@
 """Phoenix monitoring integration for multiagent debugger."""
 
 import os
-import logging
 from typing import Optional, Dict, Any
 from contextlib import contextmanager
 
@@ -10,12 +9,59 @@ try:
     from phoenix.otel import register
     from opentelemetry import trace
     PHOENIX_AVAILABLE = True
+    
+    # Import instrumentation modules
+    try:
+        from openinference.instrumentation.openai import OpenAIInstrumentor
+        OPENAI_INSTRUMENTATION = True
+    except ImportError:
+        OPENAI_INSTRUMENTATION = False
+        OpenAIInstrumentor = None
+    
+    try:
+        from openinference.instrumentation.anthropic import AnthropicInstrumentor
+        ANTHROPIC_INSTRUMENTATION = True
+    except ImportError:
+        ANTHROPIC_INSTRUMENTATION = False
+        AnthropicInstrumentor = None
+    
+    try:
+        from openinference.instrumentation.google_genai import GoogleGenAIInstrumentor
+        GOOGLE_GENAI_INSTRUMENTATION = True
+    except ImportError:
+        GOOGLE_GENAI_INSTRUMENTATION = False
+        GoogleGenAIInstrumentor = None
+    
+    try:
+        from openinference.instrumentation.groq import GroqInstrumentor
+        GROQ_INSTRUMENTATION = True
+    except ImportError:
+        GROQ_INSTRUMENTATION = False
+        GroqInstrumentor = None
+    
+    try:
+        from openinference.instrumentation.mistralai import MistralAIInstrumentor
+        MISTRALAI_INSTRUMENTATION = True
+    except ImportError:
+        MISTRALAI_INSTRUMENTATION = False
+        MistralAIInstrumentor = None
+        
 except ImportError:
     PHOENIX_AVAILABLE = False
-    trace = None
+    px = None
     register = None
+    trace = None
+    OPENAI_INSTRUMENTATION = False
+    ANTHROPIC_INSTRUMENTATION = False
+    GOOGLE_GENAI_INSTRUMENTATION = False
+    GROQ_INSTRUMENTATION = False
+    MISTRALAI_INSTRUMENTATION = False
+    OpenAIInstrumentor = None
+    AnthropicInstrumentor = None
+    GoogleGenAIInstrumentor = None
+    GroqInstrumentor = None
+    MistralAIInstrumentor = None
 
-logger = logging.getLogger(__name__)
 
 
 class PhoenixMonitor:
@@ -33,13 +79,16 @@ class PhoenixMonitor:
         self.tracer = None
         
         if not PHOENIX_AVAILABLE:
-            logger.warning("Phoenix not available. Install with: pip install arize-phoenix")
+            print("Phoenix not available. Install with: pip install arize-phoenix")
             return
             
         self._setup_phoenix()
     
     def _setup_phoenix(self):
         """Set up Phoenix monitoring and OpenTelemetry tracing."""
+        if not PHOENIX_AVAILABLE:
+            return
+            
         try:
             # Configure Phoenix
             phoenix_host = self.config.get('host', 'localhost')
@@ -48,32 +97,92 @@ class PhoenixMonitor:
             # Set environment variables for Phoenix
             os.environ.setdefault('PHOENIX_HOST', phoenix_host)
             os.environ.setdefault('PHOENIX_PORT', str(phoenix_port))
-            
             # Check if Phoenix is already running
             existing_session = px.active_session()
             if existing_session:
-                logger.info(f"Using existing Phoenix session at: {existing_session.url}")
+                print(f"Using existing Phoenix session at: {existing_session.url}")
                 self.session = existing_session
             elif self.config.get('launch_phoenix', True):
                 try:
-                    self.session = px.launch_app()
-                    logger.info(f"Phoenix launched at: {self.session.url}")
+                    # Use a different GRPC port to avoid conflicts
+                    import socket
+                    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+                        s.bind(('', 0))
+                        grpc_port = s.getsockname()[1]
+                    
+                    # Set GRPC port to avoid conflicts
+                    os.environ['PHOENIX_GRPC_PORT'] = str(grpc_port)
+                    
+                    self.session = px.launch_app(port=phoenix_port)
+                    print(f"Phoenix launched at: {self.session.url}")
                 except Exception as e:
-                    logger.info(f"Could not launch Phoenix session: {e}")
-                    self.session = None
+                    print(f"Could not launch Phoenix session: {e}")
+                    # Try to connect to existing Phoenix instance if launch fails
+                    try:
+                        import requests
+                        test_url = f"http://{phoenix_host}:{phoenix_port}"
+                        response = requests.get(test_url, timeout=2)
+                        if response.status_code == 200:
+                            print(f"Found existing Phoenix instance at {test_url}")
+                            # Create a mock session object
+                            class MockSession:
+                                def __init__(self, url):
+                                    self.url = url
+                            self.session = MockSession(test_url)
+                        else:
+                            self.session = None
+                    except:
+                        self.session = None
             
-            # Register Phoenix OTEL tracer with auto-instrumentation only if not already registered
+            # Register Phoenix OTEL tracer with auto-instrumentation per official docs
             try:
-                register(
+                tracer_provider = register(
                     project_name="multiagent-debugger",
                     endpoint=f"http://{phoenix_host}:{phoenix_port}/v1/traces",
-                    auto_instrument=True,
-                    set_global_tracer_provider=False  # Don't override existing tracer
+                    auto_instrument=True,  # Auto-instrument as per Phoenix docs
+                    set_global_tracer_provider=False
                 )
-                logger.info("Phoenix OTEL registered successfully")
+                print(f"Phoenix OTEL registered successfully: {tracer_provider}")
+                
+                # Explicit instrumentation for better control
+                if OPENAI_INSTRUMENTATION and OpenAIInstrumentor:
+                    try:
+                        OpenAIInstrumentor().instrument(tracer_provider=tracer_provider)
+                        print("OpenAI instrumentation enabled")
+                    except Exception as e:
+                        print(f"Failed to instrument OpenAI: {e}")
+                
+                if ANTHROPIC_INSTRUMENTATION and AnthropicInstrumentor:
+                    try:
+                        AnthropicInstrumentor().instrument(tracer_provider=tracer_provider)
+                        print("Anthropic instrumentation enabled")
+                    except Exception as e:
+                        print(f"Failed to instrument Anthropic: {e}")
+                
+                if GOOGLE_GENAI_INSTRUMENTATION and GoogleGenAIInstrumentor:
+                    try:
+                        GoogleGenAIInstrumentor().instrument(tracer_provider=tracer_provider)
+                        print("Google GenAI instrumentation enabled")
+                    except Exception as e:
+                        print(f"Failed to instrument Google GenAI: {e}")
+                
+                if GROQ_INSTRUMENTATION and GroqInstrumentor:
+                    try:
+                        GroqInstrumentor().instrument(tracer_provider=tracer_provider)
+                        print("Groq instrumentation enabled")
+                    except Exception as e:
+                        print(f"Failed to instrument Groq: {e}")
+                
+                if MISTRALAI_INSTRUMENTATION and MistralAIInstrumentor:
+                    try:
+                        MistralAIInstrumentor().instrument(tracer_provider=tracer_provider)
+                        print("MistralAI instrumentation enabled")
+                    except Exception as e:
+                        print(f"Failed to instrument MistralAI: {e}")
+                        
             except Exception as e:
-                logger.info(f"Phoenix OTEL already registered or registration failed: {e}")
-            
+                print(f"Phoenix OTEL already registered or registration failed: {e}")
+                
             # Get tracer for this application
             self.tracer = trace.get_tracer("multiagent-debugger")
             
@@ -85,14 +194,14 @@ class PhoenixMonitor:
                 # Force flush to ensure trace is sent
                 if hasattr(trace.get_tracer_provider(), 'force_flush'):
                     trace.get_tracer_provider().force_flush(timeout_millis=1000)
-                logger.info("Test trace created and flushed")
+                print("Test trace created and flushed")
             except Exception as e:
-                logger.warning(f"Failed to create test trace: {e}")
-            
-            logger.info("Phoenix monitoring initialized successfully")
-            
+                print(f"Failed to create test trace: {e}")
+
+            print("Phoenix monitoring initialized successfully")
+
         except Exception as e:
-            logger.error(f"Failed to initialize Phoenix monitoring: {e}")
+            print(f"Failed to initialize Phoenix monitoring: {e}")
             self.enabled = False
     
     
@@ -160,9 +269,9 @@ class PhoenixMonitor:
                 try:
                     if hasattr(trace.get_tracer_provider(), 'force_flush'):
                         trace.get_tracer_provider().force_flush(timeout_millis=2000)
-                        logger.debug("Crew execution trace flushed to Phoenix")
+                        print("Crew execution trace flushed to Phoenix")
                 except Exception as e:
-                    logger.debug(f"Failed to flush crew traces: {e}")
+                    print(f"Failed to flush crew traces: {e}")
     
     def add_agent_metadata(self, span, agent_result: Any):
         """Add agent execution results as metadata to the current span.
@@ -190,7 +299,7 @@ class PhoenixMonitor:
                         span.set_attribute(f"agent.tokens.{key}", value)
         
         except Exception as e:
-            logger.warning(f"Failed to add agent metadata: {e}")
+            print(f"Failed to add agent metadata: {e}")
     
     def add_custom_metrics(self, span, metrics: Dict[str, Any]):
         """Add custom metrics to the current span.
@@ -212,7 +321,7 @@ class PhoenixMonitor:
                         if isinstance(nested_value, (str, int, float, bool)):
                             span.set_attribute(f"custom.{key}.{nested_key}", nested_value)
         except Exception as e:
-            logger.warning(f"Failed to add custom metrics: {e}")
+            print(f"Failed to add custom metrics: {e}")
     
     def track_tool_usage(self, tool_name: str, execution_time: float, success: bool, **kwargs):
         """Track tool usage metrics.
@@ -304,11 +413,11 @@ class PhoenixMonitor:
                     self.session.close()
                 except AttributeError:
                     # Some versions of Phoenix don't have a close method
-                    logger.info("Phoenix session cleanup not needed")
-                logger.info("Phoenix session closed")
+                    print("Phoenix session cleanup not needed")
+                print("Phoenix session closed")
                 
         except Exception as e:
-            logger.error(f"Error during Phoenix shutdown: {e}")
+            print(f"Error during Phoenix shutdown: {e}")
     
     def get_dashboard_url(self) -> Optional[str]:
         """Get the URL to the Phoenix dashboard.

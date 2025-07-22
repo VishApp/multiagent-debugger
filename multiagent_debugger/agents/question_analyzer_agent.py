@@ -39,10 +39,16 @@ class QuestionAnalyzerAgent:
         provider, model, temperature, api_key, api_base, additional_params = get_agent_llm_config(self.llm_config)
         verbose = get_verbose_flag(self.config)
         # Create LLM
-        llm = create_crewai_llm(provider, model, temperature, api_key, api_base, additional_params)
-        
-        # Debug: Print LLM info
-        print(f"INFO: Using {provider} LLM: {model} with temperature {temperature}")
+        try:
+            llm = create_crewai_llm(provider, model, temperature, api_key, api_base, additional_params)
+            # Debug: Print LLM info
+            print(f"INFO: Using {provider} LLM: {model} with temperature {temperature}")
+        except Exception as e:
+            print(f"ERROR: Failed to create LLM in QuestionAnalyzerAgent: {e}")
+            import traceback
+            print("Full traceback:")
+            print(traceback.format_exc())
+            raise
         
         try:
             agent = Agent(
